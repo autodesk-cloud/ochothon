@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Concepts &mdash; ochonetes 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ochonetes 1.0 documentation" href="index.html" />
+    <link rel="next" title="Portal" href="portal.html" />
+    <link rel="prev" title="Overview" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+  
+  
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="portal.html" title="Portal"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Overview"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">ochonetes 1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="concepts">
+<h1>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="architecture">
+<h2>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p>Ochothon is simply a <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> application that runs a little <em>portal</em> <a class="reference external" href="https://www.python.org/">Python</a> application (which interestingly is
+an <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> container itself). The <em>portal</em>&#8216;s job is to host a set of tools that will talk to the <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> masters
+and <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> containers (for instance to deploy stuff).</p>
+<p>Why using such a proxy mechanism ? Well, mostly to encapsulate logic and avoid ending up with a fat CLI on your end.
+Additionally this allows to have all the inter-container I/O performed within the cluster (e.g no firewalling headache
+for you). Of course for a real PaaS this is also where you would inject access control, credentials and so on.</p>
+<p>In other words you deploy our <em>proxy</em> application and talk to it from then on. Easy.</p>
+</div>
+<div class="section" id="why-ochopod">
+<h3>Why Ochopod ?<a class="headerlink" href="#why-ochopod" title="Permalink to this headline">¶</a></h3>
+<p>Because <a class="reference external" href="http://mesos.apache.org/">Mesos</a> - even if totally awesome - will not perform fine grained orchestration for you. You know what I
+mean by fine grained: the ability to form relationships between your containers without the need for an extrinsic
+control mechanism (look at the <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> documentation for more details).</p>
+<p>In our case we will leverage the <em>application</em> semantics from <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a>. One <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> cluster maps to one
+or more applications. Each application runs a bunch of <a class="reference external" href="http://mesos.apache.org/">Mesos</a> <em>tasks</em> which in turn run a <a class="reference external" href="https://www.docker.com/">Docker</a> container embedding
+<a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a>.</p>
+<p><a class="reference external" href="http://mesos.apache.org/">Mesos</a> will remap ports and this needs to be taken into account when containers need to reach each other. <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> will
+manage this for you.</p>
+</div>
+<div class="section" id="where-is-zookeeper">
+<h3>Where is Zookeeper ?<a class="headerlink" href="#where-is-zookeeper" title="Permalink to this headline">¶</a></h3>
+<p>As you remember <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> relies on <a class="reference external" href="http://zookeeper.apache.org/">Zookeeper</a> for its internal leader elections and metadata storage. Our containers
+will simply all mount <em>/ect/mesos/</em> (e.g where the underlying slave stores its <a class="reference external" href="http://mesos.apache.org/">Mesos</a> configuration) and use what&#8217;s
+inside to find out where <a class="reference external" href="http://zookeeper.apache.org/">Zookeeper</a> is. So in other words we piggy back on the ensemble used by <a class="reference external" href="http://mesos.apache.org/">Mesos</a>.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/autodesk-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Concepts</a><ul>
+<li><a class="reference internal" href="#architecture">Architecture</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#why-ochopod">Why Ochopod ?</a></li>
+<li><a class="reference internal" href="#where-is-zookeeper">Where is Zookeeper ?</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Overview</a></li>
+      <li>Next: <a href="portal.html" title="next chapter">Portal</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2015, Autodesk.
+    Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  
+  </body>
+</html>

@@ -110,7 +110,7 @@ marathon.portal #1   |  10.169.225.66  |  running  |  leader
 
 ### Documentation
 
-You can [**peruse our online documentation**](http://autodesk-cloud.github.io/ochoton/) for examples, design notes
+You can [**peruse our online documentation**](http://autodesk-cloud.github.io/ochothon/) for examples, design notes
 and more !
 
 The [**Sphinx**](http://sphinx-doc.org/) materials can be found under docs/. Just go in there and build for your

@@ -29,28 +29,36 @@ def go():
 
         help = \
             '''
-                Dumps the internal ochopod log for the specified cluster(s).
+                Displays the current remapping for a given TCP port across the specified cluster(s).
             '''
 
-        tag = 'log'
+        tag = 'port'
 
         def customize(self, parser):
 
+            parser.add_argument('port', type=int, nargs=1, help='TCP port to lookup')
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
 
         def body(self, args, proxy):
 
-            for token in args.clusters:
+            port = str(args.port[0])
+            for cluster in args.clusters:
 
                 def _query(zk):
-                    replies = fire(zk, token, 'log')
-                    return {key: log for key, (_, log, code) in replies.items() if code == 200}
+                    responses = fire(zk, cluster, 'info')
+                    return [[key, '|', hints['public'], '|', str(hints['ports'][port])] for key, (_, hints, code) in responses.items() if code == 200 and port in hints['ports']]
 
                 js = run(proxy, _query)
                 if js:
-                    pct = (len(js) * 100) / len(js)
-                    unrolled = ['- %s\n\n  %s' % (key, '  '.join(log[-64:])) for key, log in js.items()]
-                    logger.info('<%s> -> %d%% replies (%d pods total) ->\n%s' % (token, pct, len(js), '\n'.join(unrolled)))
 
+                    #
+                    # - justify & format the whole thing in a nice set of columns
+                    #
+                    pct = (len(js) * 100) / len(js)
+                    logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (cluster, pct, len(js)))
+                    rows = [['cluster', '|', 'node IP', '|', 'TCP'], ['', '|', '', '|', '']] + js
+                    widths = [max(map(len, col)) for col in zip(*rows)]
+                    for row in rows:
+                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
 
     return _Tool()

@@ -36,7 +36,7 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, template, overrides, namespace, pods, cycle):
+    def __init__(self, proxy, template, overrides, namespace, pods, cycle, suffix):
         super(_Automation, self).__init__()
 
         self.cycle = cycle
@@ -51,6 +51,7 @@ class _Automation(Thread):
         self.pods = pods
         self.proxy = proxy
         self.template = template
+        self.suffix = suffix
 
         self.start()
 
@@ -85,13 +86,19 @@ class _Automation(Thread):
                     cfg['settings'] = {}
 
                 #
+                # - if a suffix is specified append it to the cluster identifier
+                #
+                if self.suffix:
+                    cfg['cluster'] = '%s-%s' % (cfg['cluster'], self.suffix)
+
+                #
                 # - timestamp the application (we really want a new uniquely identified application)
                 # - lookup the optional overrides and merge with our pod settings if specified
                 # - this is what happens when the -o option is used
                 #
-                suffix = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S')
+                stamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S')
                 qualified = '%s.%s' % (self.namespace, cfg['cluster'])
-                application = 'ochopod.%s-%s' % (qualified, suffix)
+                application = 'ochopod.%s-%s' % (qualified, stamp)
                 if qualified in self.overrides:
 
                     blk = self.overrides[qualified]
@@ -133,9 +140,19 @@ class _Automation(Thread):
 
                 #
                 # - setup our port list
+                # - any port prefixed by '* ' will be set on the host node as well
                 # - the marathon pods must by design map /etc/mesos
                 #
-                ports = [{'containerPort': port} for port in cfg['ports']]
+                def _parse_port(token):
+                    if isinstance(token, int):
+                        return {'containerPort': token}
+                    elif isinstance(token, str) and token.endswith(' *'):
+                        port = int(token[:-2])
+                        return {'containerPort': port, 'hostPort': port}
+                    else:
+                        assert 0, 'invalid port syntax ("%s")' % token
+
+                ports = [_parse_port(token) for token in cfg['ports']] if 'ports' in cfg else []
                 spec = \
                     {
                         'id': application,
@@ -257,10 +274,12 @@ def go():
 
         help = \
             '''
-                Spawns a marathon application for each of the specified cluster(s). The tool will wait for all containers
-                to be running (but not necessarily configured & clustered). If no container ended up being deployed the
-                underlying marathon application will automatically get deleted. If -c is specified any pod previously
-                running for the specified cluster(s) will be gracefully phased out once the new pods are up.
+                Spawns a marathon application for each of the specified cluster(s). The tool will wait for all
+                containers to be running (but not necessarily configured & clustered yet). If no container ended up
+                being deployed the underlying marathon application will automatically get deleted. If -c is specified
+                any pod previously running for the specified cluster(s) will be gracefully phased out once the new pods
+                are up. It is possible to add a suffix to the cluster identifier defined in the yaml configuration by
+                using the -s option (typically to run the same functionality in different contexts).
             '''
 
         tag = 'deploy'
@@ -269,10 +288,12 @@ def go():
 
             parser.add_argument('containers', type=str, nargs='*', default='*', help='1+ container yaml definitions (can be a glob pattern, e.g foo*)')
             parser.add_argument('-c', action='store_true', dest='cycle', help='cycling (e.g the current pods will be phased out')
+            parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-n', action='store', dest='namespace', type=str, default='default', help='cluster namespace')
             parser.add_argument('-o', action='store', dest='overrides', type=str, help='overrides yaml file')
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
-            parser.add_argument('-j', action='store_true', dest='json', help='json output')
+            parser.add_argument('-s', action='store', dest='suffix', type=str, help='optional cluster suffix')
+
 
         def body(self, args, proxy):
 
@@ -300,7 +321,14 @@ def go():
             #
             # - run the workflow proper (one thread per container definition)
             #
-            threads = {template: _Automation(proxy, template, overrides, args.namespace, args.pods, args.cycle) for template in args.containers}
+            threads = {template: _Automation(
+                proxy,
+                template,
+                overrides,
+                args.namespace,
+                args.pods,
+                args.cycle,
+                args.suffix) for template in args.containers}
 
             #
             # - wait for all our threads to join

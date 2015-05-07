@@ -4,7 +4,7 @@
 
 This project is a small development PaaS leveraging [**Ochopod**](https://github.com/autodesk-cloud/ochopod)
 and overlaying it on top of [**Marathon**](https://mesosphere.github.io/marathon/). It is the Marathon equivalent of
-[**Ochonetes*](https://github.com/autodesk-cloud/ochonetes).
+[**Ochonetes**](https://github.com/autodesk-cloud/ochonetes).
 
 It provides a self-contained web-shell ([**JQuery**](https://jquery.com/) rocks !) hosting our little toolkit that will
 allow you to create, query and manage your ochopod containers. It also lets you CURL your commands directly which is

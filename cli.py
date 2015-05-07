@@ -20,7 +20,7 @@ import json
 import os
 import sys
 
-from os.path import isfile
+from os.path import basename, expanduser, isfile
 from subprocess import Popen, PIPE
 from sys import exit
 
@@ -62,7 +62,13 @@ def cli():
         def do_shell(self, line):
             if line:
                 tokens = line.split(' ')
-                files = ['-F %s=@%s' % (token, token) for token in tokens if isfile(token)]
+
+                #
+                # - update from steven -> reformat the input line to handle indirect paths transparently
+                # - for instance ../foo.bar will become foo.bar with the actual file included in the multi-part post
+                #
+                files = ['-F %s=@%s' % (basename(token), expanduser(token)) for token in tokens if isfile(expanduser(token))]
+                line = ' '.join([basename(token) if isfile(expanduser(token)) else token for token in tokens])
                 snippet = 'curl -X POST -H "X-Shell:%s" %s %s:9000/shell' % (line, ' '.join(files), ip)
                 code, out = self._exec(snippet)
                 print json.loads(out)['out'] if code is 0 else 'i/o failure (is the proxy down ?)'

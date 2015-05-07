@@ -1,0 +1,34 @@
+{
+    "id":"ocho-proxy",
+    "cpu":1,
+    "mem":512,
+    "env":{
+        "ochopod_cluster":              "portal",
+        "ochopod_debug":                "true",
+        "MARATHON_MASTER":              <MARATHON MASTER IP:8080>
+    },
+    "container":{
+        "type":"DOCKER",
+        "forcePullImage":true,
+        "docker":{
+            "network":                  "BRIDGE",
+            "image":                    "paugamo/marathon-ec2-portal",
+            "portMappings":[
+                {
+                    "hostPort":         9000,
+                    "containerPort":    9000
+                },
+                {
+                    "containerPort":    8080
+                }
+            ]
+        },
+        "volumes":[
+            {
+                "containerPath":        "/etc/mesos",
+                "hostPath":             "/etc/mesos",
+                "mode":                 "RO"
+            }
+        ]
+    }
+}

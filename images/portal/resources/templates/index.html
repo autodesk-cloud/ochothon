@@ -1,0 +1,64 @@
+<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <meta name="Description" content=""/>
+    <link rel="shortcut icon" href=""/>
+    <!--[if IE]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link href="http://terminal.jcubic.pl/css/jquery.terminal.css" rel="stylesheet"/>
+    <style>
+    html, body, #term {
+        height: 100%;
+        margin: 0;
+    }
+    </style>
+    <script src="http://terminal.jcubic.pl/js/jquery-1.7.1.min.js"></script>
+	<script src="http://terminal.jcubic.pl/js/jquery.terminal-src.js"></script>
+    <script>
+    $(function() {
+        $('#term').terminal(function(cmd, term) {
+            if(cmd === '') return;
+            term.pause();
+            $.getJSON({{ request.script_root|tojson|safe }} + '/shell',
+                {
+                    line: cmd
+                },
+                function(data)
+                {
+                    out = (data['ok'] != 1) ? '[[bg;RED;BLACK]' + data['out'] + ']': data['out'];
+                    term.echo(out + '\n')
+                    term.resume();
+                });
+        }, {
+            name: 'term',
+            height: $('body').height()-20,
+            prompt: '> ',
+            greetings:'                                                     \n\
+                                                                            \n\
+                            888                                  888        \n\
+                            888                                  888        \n\
+                            888                                  888        \n\
+             .d88b.  .d8888b88888b.  .d88b. 88888b.  .d88b.  .d88888        \n\
+            d88""88bd88P"   888 "88bd88""88b888 "88bd88""88bd88" 888        \n\
+            888  888888     888  888888  888888  888888  888888  888        \n\
+            Y88..88PY88b.   888  888Y88..88P888 d88PY88..88PY88b 888        \n\
+             "Y88P"  "Y8888P888  888 "Y88P" 88888P"  "Y88P"  "Y88888        \n\
+                                            888                             \n\
+                                            888                             \n\
+                                            888                             \n\
+                                                                            \n\
+             web-shell ready.                                               \n\
+            '
+        });
+    });
+    </script>
+</head>
+<body>
+	<div class="wrapper">
+		<div id="term"></div>
+	</div>
+</body>
+</html>

@@ -145,10 +145,11 @@ def go():
 
         help = \
             '''
-                Deletes the marathon application(s) for the specified cluster(s). The underlying ochopod containers
-                will be gracefully shutdown first. Container can also be cherry-picked by specifying their sequence
-                index and using -i. Any marathon application whose containers are all dead will be automatically
-                deleted.
+                Gracefully shuts the ochopod containers down for the specified cluster(s). Individual containers can
+                also be cherry-picked by specifying their sequence index and using -i. Any marathon application whose
+                containers are *all* dead will automatically get deleted.
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
 
         tag = 'kill'
@@ -156,7 +157,7 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='sequence indices')
+            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
 
         def body(self, args, proxy):

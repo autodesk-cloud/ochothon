@@ -34,9 +34,11 @@ def go():
             '''
                 Sends a block of arbitrary YAML data to the specified cluster(s). Each container will receive the
                 data as a dict and pass it to its signal() callback for processing.
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
 
-        tag = 'on'
+        tag = 'ping'
 
         def customize(self, parser):
 
@@ -67,7 +69,7 @@ def go():
 
             except IOError:
 
-                logger.info('unable to load %s' % args.yaml)
+                logger.info('unable to load %s' % args.yaml[0])
 
             except YAMLError as failure:
 

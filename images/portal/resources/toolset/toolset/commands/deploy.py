@@ -280,6 +280,8 @@ def go():
                 any pod previously running for the specified cluster(s) will be gracefully phased out once the new pods
                 are up. It is possible to add a suffix to the cluster identifier defined in the yaml configuration by
                 using the -s option (typically to run the same functionality in different contexts).
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
 
         tag = 'deploy'

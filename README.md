@@ -1,4 +1,4 @@
-## Ochoton
+## Ochothon
 
 ### Overview
 
@@ -26,14 +26,14 @@ Once it is up look where your Marathon masters are running from and note their p
 #### Step 2 : deploy our proxy
 
 We use a simple proxy mechanism to interact with our containers. Edit the provided ```ocho-proxy.json``` and specify
-the internal IP for each master (just the IP, not a URL) including port 8080. For instance:
+the **internal** IP for each master (just the IP, not a URL) including port 8080. For instance:
 
 ```
 "MARATHON_MASTER": "10.37.202.103:8080,10.169.225.66:8080"
 ```
 
-_Please note this (clunky) procedure temporary until a way to find out what the masters are from within a container is
-implemented in Marathon._
+_Please note this (clunky) procedure is temporary until a way to find out what the masters are from within a container
+is implemented in Marathon._
 
 Then create the proxy application using CURL for instance. Make sure to post to one of your masters using its public
 IP if you are on your workstation. For instance:
@@ -43,7 +43,7 @@ $ curl -s -XPOST http://54.159.110.218:8080/v2/apps -d@ocho-proxy.json -H "Conte
 ```
 
 Wait a bit until the _ocho-proxy_ application is up and look at its only task. You can do this using the cool Marathon
-web UI for instance.
+web UI.
 
 Note its internal EC2 IP address (usually something like ```ip-172-20-0-11.ec2.internal```). Go in your AWS EC2 console
 and find out what slave matches it. What you want of course it the slave public IP (e.g the one you can reach from your

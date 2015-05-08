@@ -51,7 +51,7 @@ def cli():
         ruler = '-'
 
         def precmd(self, line):
-            return 'shell %s' % line
+            return 'shell %s' % line if line not in ['exit'] else line
 
         def emptyline(self):
             pass
@@ -78,7 +78,7 @@ def cli():
             pid.wait()
             return pid.returncode, pid.stdout.read()
 
-    print('welcome to the ocho CLI ! (CTRL-C to exit)')
+    print('welcome to the ocho CLI ! (CTRL-C or exit to get out)')
     try:
 
         Shell().cmdloop()

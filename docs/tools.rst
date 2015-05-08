@@ -25,7 +25,7 @@ is done via a tiny YAML_ file I call a *container definition*. For instance:
 .. code:: yaml
 
     cluster:  zookeeper
-    image:    paugamo/k8s-ec2-zookeeper
+    image:    paugamo/marathon-ec2-zookeeper
     settings:
     ports:
         - 2181
@@ -37,8 +37,7 @@ is done via a tiny YAML_ file I call a *container definition*. For instance:
     This YAML_ file is **not** related to the Marathon_ API in any way. This is completely specific to Ochopod_.
 
 This little snippet can be uploaded and passed to the **deploy** tool which will then turn it into a full-fledged
-*replication controller* call to the K8S service API. Any required setting for Ochopod_ will be added in there as well
-transparently.
+*application* call to the Marathon_ API. Any required setting for Ochopod_ will be added in there as well transparently.
 
 Please note the *settings* block which can hold arbitrary nested data. This will be turned into a single serialized
 JSON snippet and passed to the container as the *pod* environment variable. Very handy to specify complex runtime
@@ -49,6 +48,18 @@ settings.
     Please note I decided to split image building & deployment as it turned out to be impractical to have the *portal*
     to build/push images on its own. With the current model you are assumed to have images already built somewhere,
     which is still fine.
+
+Port mappings
+*************
+
+You can define the TCP ports you wish to expose via the lightweight *ports* array setting. If you need to expose a
+port on both the container and its host simply add a *. This will be mapped to the syntax Marathon_ expects. For
+instance:
+
+.. code:: yaml
+
+    ports:
+        - 5000 *
 
 Verbatim settings
 *****************
@@ -87,6 +98,20 @@ deleted.
 
 You can inspect your clusters at runtime using for instance the **grep**, **info** or **log** commands.
 
+CI integration
+**************
+
+Some of the tools support a *-j* switch which will format their output to JSON. This can be used for instance to
+integrate smoothly with a CI system such as Jenkins_ ! Please note the only thing you need to setup is the portal IP
+address (e.g no tools to install locally).
+
+The **ping** tool has been provided to allow direct interactions with the running containers. You can send arbitrary
+YAML_ data (some commands or maybe some updated configuration settings) to whatever cluster(s). The Ochopod_ script
+running on those containers has the option to implement custom logic to react to that YAML_ data and respond back. This
+is a great way to quickly add controlling logic driven for instance from a Jenkins_ slave.
+
+
+.. _Jenkins: https://jenkins-ci.org/
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _Mesos: http://mesos.apache.org/
 .. _Ochopod: https://github.com/autodesk-cloud/ochopod

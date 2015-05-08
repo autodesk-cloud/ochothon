@@ -63,6 +63,49 @@ It comes with a little web-shell and provides lean remoting as well. We embed a 
 query, deploy and shutdown your <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> containers.</p>
 <p>It is 100% made of <a class="reference external" href="https://www.python.org/">Python</a> with a dash of <a class="reference external" href="https://jquery.com/">JQuery</a> for the web-shell !</p>
 </div>
+<div class="section" id="cool-examples">
+<h2>Cool examples<a class="headerlink" href="#cool-examples" title="Permalink to this headline">¶</a></h2>
+<p>Our little CLI turns your dev/ops tasks into sheer pleasure ! No more headache with complicated APIs and undocumented
+tools ! You don&#8217;t even have anything to install !</p>
+<p>Need to check if you have some <a class="reference external" href="http://kafka.apache.org/">Kafka</a> brokers deployed on your <a class="reference external" href="http://mesos.apache.org/">Mesos</a> cluster ?</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>&gt; grep *kafka*
+&lt;*kafka*&gt; -&gt; 100% replies (1 pods total) -&gt;
+
+cluster               |  pod IP          |  process  |  state
+                      |                  |           |
+big.data.kafka #2     |  10.171.105.235  |  running  |  leader
+</pre></div>
+</div>
+<p>Need to quickly stop <a class="reference external" href="http://redis.io/">Redis</a>, do stuff and restart it ?</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>&gt; off *redis
+&lt;*redis&gt; -&gt; 100% replies, 1 pods off
+
+&gt; on *redis
+&lt;*redis&gt; -&gt; 100% replies, 1 pods on
+</pre></div>
+</div>
+<p>Need to know on what port your containerized <a class="reference external" href="http://zookeeper.apache.org/">Zookeeper</a> ensemble is listening on ?</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>&gt; port 2181 *zookeeper
+&lt;*zookeeper&gt; -&gt; 100% replies (3 pods total) -&gt;
+
+cluster                  |  node IP         |  TCP
+                         |                  |
+my.project.zookeeper #1  |  54.81.20.224    |  9001
+my.project.zookeeper #2  |  54.198.16.240   |  1029
+my.project.zookeeper #3  |  54.157.129.239  |  1026
+</pre></div>
+</div>
+<p>Want to push a new build for your API tier and gracefully phase out the old containers ?</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>&gt; deploy api.yml -c -n frontend
+100% success (spawned 4 pods)
+</pre></div>
+</div>
+<p>Need to phase all your test clusters out in one go ?</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>&gt; kill test.*
+100% success (6 dead pods)
+</pre></div>
+</div>
+</div>
 <div class="section" id="contents">
 <h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
@@ -88,8 +131,10 @@ query, deploy and shutdown your <a class="reference external" href="https://gith
 <li class="toctree-l2"><a class="reference internal" href="tools.html#the-tool-set">The tool set</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="tools.html#overview">Overview</a></li>
 <li class="toctree-l3"><a class="reference internal" href="tools.html#container-definitions">Container definitions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tools.html#port-mappings">Port mappings</a></li>
 <li class="toctree-l3"><a class="reference internal" href="tools.html#verbatim-settings">Verbatim settings</a></li>
 <li class="toctree-l3"><a class="reference internal" href="tools.html#your-clusters">Your clusters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="tools.html#ci-integration">CI integration</a></li>
 </ul>
 </li>
 </ul>
@@ -120,6 +165,7 @@ query, deploy and shutdown your <a class="reference external" href="https://gith
   <ul>
 <li><a class="reference internal" href="#">Overview</a><ul>
 <li><a class="reference internal" href="#ochothon">Ochothon</a></li>
+<li><a class="reference internal" href="#cool-examples">Cool examples</a></li>
 <li><a class="reference internal" href="#contents">Contents</a></li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>

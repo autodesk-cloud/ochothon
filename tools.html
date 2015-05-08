@@ -70,7 +70,7 @@ constructs (<em>applications</em> in the present case). This is all done by the 
 <p>Now we of course want to pass just enough data to quantify what we need to run, what ports to expose and so on. This
 is done via a tiny <a class="reference external" href="http://yaml.org/">YAML</a> file I call a <em>container definition</em>. For instance:</p>
 <div class="code yaml highlight-python"><div class="highlight"><pre>cluster:  zookeeper
-image:    paugamo/k8s-ec2-zookeeper
+image:    paugamo/marathon-ec2-zookeeper
 settings:
 ports:
     - 2181
@@ -83,8 +83,7 @@ ports:
 <p class="last">This <a class="reference external" href="http://yaml.org/">YAML</a> file is <strong>not</strong> related to the <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> API in any way. This is completely specific to <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a>.</p>
 </div>
 <p>This little snippet can be uploaded and passed to the <strong>deploy</strong> tool which will then turn it into a full-fledged
-<em>replication controller</em> call to the K8S service API. Any required setting for <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> will be added in there as well
-transparently.</p>
+<em>application</em> call to the <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> API. Any required setting for <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> will be added in there as well transparently.</p>
 <p>Please note the <em>settings</em> block which can hold arbitrary nested data. This will be turned into a single serialized
 JSON snippet and passed to the container as the <em>pod</em> environment variable. Very handy to specify complex runtime
 settings.</p>
@@ -93,6 +92,16 @@ settings.</p>
 <p class="last">Please note I decided to split image building &amp; deployment as it turned out to be impractical to have the <em>portal</em>
 to build/push images on its own. With the current model you are assumed to have images already built somewhere,
 which is still fine.</p>
+</div>
+</div>
+<div class="section" id="port-mappings">
+<h3>Port mappings<a class="headerlink" href="#port-mappings" title="Permalink to this headline">¶</a></h3>
+<p>You can define the TCP ports you wish to expose via the lightweight <em>ports</em> array setting. If you need to expose a
+port on both the container and its host simply add a <a href="#id1"><span class="problematic" id="id2">*</span></a>. This will be mapped to the syntax <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> expects. For
+instance:</p>
+<div class="code yaml highlight-python"><div class="highlight"><pre>ports:
+    - 5000 *
+</pre></div>
 </div>
 </div>
 <div class="section" id="verbatim-settings">
@@ -126,6 +135,16 @@ go into idling). Any underlying <a class="reference external" href="https://meso
 deleted.</p>
 <p>You can inspect your clusters at runtime using for instance the <strong>grep</strong>, <strong>info</strong> or <strong>log</strong> commands.</p>
 </div>
+<div class="section" id="ci-integration">
+<h3>CI integration<a class="headerlink" href="#ci-integration" title="Permalink to this headline">¶</a></h3>
+<p>Some of the tools support a <em>-j</em> switch which will format their output to JSON. This can be used for instance to
+integrate smoothly with a CI system such as <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> ! Please note the only thing you need to setup is the portal IP
+address (e.g no tools to install locally).</p>
+<p>The <strong>ping</strong> tool has been provided to allow direct interactions with the running containers. You can send arbitrary
+<a class="reference external" href="http://yaml.org/">YAML</a> data (some commands or maybe some updated configuration settings) to whatever cluster(s). The <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> script
+running on those containers has the option to implement custom logic to react to that <a class="reference external" href="http://yaml.org/">YAML</a> data and respond back. This
+is a great way to quickly add controlling logic driven for instance from a <a class="reference external" href="https://jenkins-ci.org/">Jenkins</a> slave.</p>
+</div>
 </div>
 </div>
 
@@ -144,8 +163,10 @@ deleted.</p>
 <li><a class="reference internal" href="#the-tool-set">The tool set</a><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
 <li><a class="reference internal" href="#container-definitions">Container definitions</a></li>
+<li><a class="reference internal" href="#port-mappings">Port mappings</a></li>
 <li><a class="reference internal" href="#verbatim-settings">Verbatim settings</a></li>
 <li><a class="reference internal" href="#your-clusters">Your clusters</a></li>
+<li><a class="reference internal" href="#ci-integration">CI integration</a></li>
 </ul>
 </li>
 </ul>

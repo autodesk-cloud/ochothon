@@ -26,7 +26,6 @@ is done via a tiny YAML_ file I call a *container definition*. For instance:
 
     cluster:  zookeeper
     image:    paugamo/marathon-ec2-zookeeper
-    settings:
     ports:
         - 2181
         - 2888
@@ -39,15 +38,62 @@ is done via a tiny YAML_ file I call a *container definition*. For instance:
 This little snippet can be uploaded and passed to the **deploy** tool which will then turn it into a full-fledged
 *application* call to the Marathon_ API. Any required setting for Ochopod_ will be added in there as well transparently.
 
-Please note the *settings* block which can hold arbitrary nested data. This will be turned into a single serialized
-JSON snippet and passed to the container as the *pod* environment variable. Very handy to specify complex runtime
-settings.
-
 .. note::
 
     Please note I decided to split image building & deployment as it turned out to be impractical to have the *portal*
     to build/push images on its own. With the current model you are assumed to have images already built somewhere,
     which is still fine.
+
+Debug logging
+*************
+
+You can always get access to your Ochopod_ internal log (located at */var/log/ochopod.log*) for all your containers.
+Simply use the **log** tool for that. Now the log level is by default set to *INFO* and above. You can force it to
+*DEBUG* by switching the optional *debug* setting to true. For instance:
+
+.. code:: yaml
+
+    cluster:  zookeeper
+    image:    paugamo/marathon-ec2-zookeeper
+    debug:    true
+    ports:
+        - 2181
+        - 2888
+        - 3888
+
+This can be helpful to troubleshoot problems at runtime. Beware, the Ochopod_ debug log is quite verbose.
+
+Container settings
+******************
+
+The optional *settings* block which can hold arbitrary nested data. This will be turned into a single serialized
+JSON snippet and passed to the container as the *$pod* environment variable. Very handy to specify complex runtime
+settings. For instance:
+
+.. code:: yaml
+
+    settings:
+        jvm-options:
+          -Xms1g
+          -Xmx2g
+
+You also have the ability to override those settings when using the **deploy** tool. Simply use the *-o* command line
+option and point to a local YAML_ file. This file simply maps arbitrary settings for a given fully qualified cluster
+identifier. For instance:
+
+.. code:: yaml
+
+    dev.web-server:
+        debug: true
+        jvm-options:
+          -Xmx1g
+
+    prod.web-server:
+        debug: false
+        jvm-options:
+          -Xmx4g
+
+Any container from cluster *web-server* under namespace *dev* will thus see *debug* set to true in its *$pod* variable.
 
 Port mappings
 *************
@@ -76,6 +122,7 @@ as the resource quotas. For instance:
     verbatim:
         cpu: 1.0
         mem: 256
+        
     ports:
         - 2181
         - 2888
@@ -109,7 +156,6 @@ The **ping** tool has been provided to allow direct interactions with the runnin
 YAML_ data (some commands or maybe some updated configuration settings) to whatever cluster(s). The Ochopod_ script
 running on those containers has the option to implement custom logic to react to that YAML_ data and respond back. This
 is a great way to quickly add controlling logic driven for instance from a Jenkins_ slave.
-
 
 .. _Jenkins: https://jenkins-ci.org/
 .. _Marathon: https://mesosphere.github.io/marathon/

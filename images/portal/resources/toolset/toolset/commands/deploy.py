@@ -73,17 +73,21 @@ class _Automation(Thread):
 
                 #
                 # - parse the template yaml file (e.g container definition)
-                # - add the ochopod control port if not specified
+                # - merge with our defaults
+                # - we want at least the cluster & image settings
+                # - TCP 8080 is added by default to the port list
                 #
-                cfg = yaml.load(f)
-                if 8080 not in cfg['ports']:
-                    cfg['ports'].append(8080)
+                defaults = \
+                    {
+                        'debug': False,
+                        'settings': {},
+                        'ports': [8080],
+                        'verbatim': {}
+                    }
 
-                #
-                # - add the settings block if not already there
-                #
-                if not 'settings' in cfg:
-                    cfg['settings'] = {}
+                cfg = merge(defaults, yaml.load(f))
+                assert 'cluster' in cfg, 'cluster identifier undefined (user error ?)'
+                assert 'image' in cfg, 'docker image undefined (user error ?)'
 
                 #
                 # - if a suffix is specified append it to the cluster identifier
@@ -160,6 +164,7 @@ class _Automation(Thread):
                         'env':
                             {
                                 'ochopod_cluster': cfg['cluster'],
+                                'ochopod_debug': 'true' if cfg['debug'] else 'false',
                                 'ochopod_namespace': self.namespace,
                                 'ochopod_application': qualified,
                                 'pod': json.dumps(cfg['settings'])

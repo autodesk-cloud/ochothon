@@ -21,7 +21,7 @@ import os
 import time
 import yaml
 
-from ochopod.core.fsm import diagnostic, shutdown
+from ochopod.core.fsm import diagnostic
 from ochopod.core.utils import merge, retry, shell
 from random import choice
 from requests import delete, post

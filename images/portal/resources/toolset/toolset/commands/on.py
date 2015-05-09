@@ -44,7 +44,7 @@ def go():
 
                 def _query(zk):
                     replies = fire(zk, token, 'control/on')
-                    return [pod for pod, (_, hints, code) in replies.items() if code == 200]
+                    return [pod for pod, (_, _, code) in replies.items() if code == 200]
 
                 js = run(proxy, _query)
                 if js:

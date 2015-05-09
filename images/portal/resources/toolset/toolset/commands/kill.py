@@ -18,7 +18,7 @@ import json
 import logging
 import os
 
-from ochopod.core.fsm import diagnostic, shutdown
+from ochopod.core.fsm import diagnostic
 from ochopod.core.utils import retry
 from random import choice
 from requests import get, delete

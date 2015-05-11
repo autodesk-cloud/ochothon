@@ -124,6 +124,10 @@ $ make html
 The docs will be written to _docs/_build/html_. This is all Sphinx based and you have many options and knobs to
 tweak should you want to customize the output.
 
+### More examples
+
+Check out my [**git repositories**](https://github.com/opaugam) for images, code samples & more !
+
 ### Support
 
 Contact autodesk.cloud.opensource@autodesk.com for more information about this project.

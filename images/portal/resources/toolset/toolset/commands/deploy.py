@@ -36,7 +36,7 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, template, overrides, namespace, pods, cycle, suffix):
+    def __init__(self, proxy, template, overrides, namespace, pods, cycle, suffix, timeout):
         super(_Automation, self).__init__()
 
         self.cycle = cycle
@@ -52,6 +52,7 @@ class _Automation(Thread):
         self.proxy = proxy
         self.template = template
         self.suffix = suffix
+        self.timeout = max(timeout, 5)
 
         self.start()
 
@@ -174,6 +175,7 @@ class _Automation(Thread):
                                 'type': 'DOCKER',
                                 'docker':
                                     {
+                                        'forcePullImage': True,
                                         'image': cfg['image'],
                                         'network': 'BRIDGE',
                                         'portMappings': ports
@@ -211,7 +213,7 @@ class _Automation(Thread):
                 # - the 'application' hint is set by design to the marathon application identifier
                 # - the sequence counters allocated to our new pods are returned as well
                 #
-                @retry(timeout=60, pause=1, default={})
+                @retry(timeout=self.timeout, pause=3, default={})
                 def _spin():
                     def _query(zk):
                         replies = fire(zk, qualified, 'info')
@@ -294,12 +296,13 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('containers', type=str, nargs='*', default='*', help='1+ container yaml definitions (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-c', action='store_true', dest='cycle', help='cycling (e.g the current pods will be phased out')
+            parser.add_argument('-c', action='store_true', dest='cycle', help='cycling (e.g the current pods will be phased out)')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-n', action='store', dest='namespace', type=str, default='default', help='cluster namespace')
             parser.add_argument('-o', action='store', dest='overrides', type=str, help='overrides yaml file')
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
             parser.add_argument('-s', action='store', dest='suffix', type=str, help='optional cluster suffix')
+            parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
 
 
         def body(self, args, proxy):
@@ -335,7 +338,8 @@ def go():
                 args.namespace,
                 args.pods,
                 args.cycle,
-                args.suffix) for template in args.containers}
+                args.suffix,
+                args.timeout) for template in args.containers}
 
             #
             # - wait for all our threads to join

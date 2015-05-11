@@ -32,7 +32,7 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, cluster, subset):
+    def __init__(self, proxy, cluster, subset, timeout):
         super(_Automation, self).__init__()
 
         self.cluster = cluster
@@ -43,6 +43,7 @@ class _Automation(Thread):
             }
         self.proxy = proxy
         self.subset = subset
+        self.timeout = max(timeout, 5)
 
         self.start()
 
@@ -65,7 +66,7 @@ class _Automation(Thread):
             # - wait for them to be dead
             # - warning, /control/kill will block (hence the 5 seconds timeout)
             #
-            @retry(timeout=60, pause=1)
+            @retry(timeout=self.timeout, pause=0)
             def _spin():
                 def _query(zk):
                     replies = fire(zk, self.cluster, 'control/kill', subset=self.subset, timeout=5)
@@ -159,13 +160,18 @@ def go():
             parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
+            parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
 
         def body(self, args, proxy):
 
             #
             # - run the workflow proper (one thread per container definition)
             #
-            threads = {cluster: _Automation(proxy, cluster, args.subset) for cluster in args.clusters}
+            threads = {cluster: _Automation(
+                proxy,
+                cluster,
+                args.subset,
+                args.timeout) for cluster in args.clusters}
 
             #
             # - wait for all our threads to join

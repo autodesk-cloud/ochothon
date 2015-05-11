@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import argparse
 import logging
 import os
 
+from argparse import ArgumentParser
 from logging import DEBUG
 from ochopod.core.core import ROOT
 from ochopod.core.fsm import diagnostic, shutdown
@@ -41,7 +41,13 @@ class Template():
 
     def run(self, cmdline):
 
-        parser = argparse.ArgumentParser(prog='ocho %s' % self.tag, description=self.help)
+        class _Parser(ArgumentParser):
+            def error(self, message):
+                logger.error('error: %s\n' % message)
+                self.print_help()
+                exit(1)
+
+        parser = _Parser(prog=self.tag, description=self.help)
         self.customize(parser)
         parser.add_argument('-d', '--debug', action='store_true', help='debug mode')
         args = parser.parse_args(cmdline)

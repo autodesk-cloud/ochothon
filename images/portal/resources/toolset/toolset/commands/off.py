@@ -29,8 +29,9 @@ def go():
 
         help = \
             '''
-                Switches the specified pods off (their sub-process being gracefully shutdown while the pod keeps
-                running).
+                Switches one or more containers off (their sub-process being gracefully shutdown while the pod keeps
+                running). Individual containers can also be cherry-picked by specifying their sequence index and using
+                -i.
             '''
 
         tag = 'off'
@@ -38,18 +39,19 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
 
         def body(self, args, proxy):
 
             for token in args.clusters:
 
                 def _query(zk):
-                    replies = fire(zk, token, 'control/off')
-                    return [pod for pod, (_, _, code) in replies.items() if code == 200]
+                    replies = fire(zk, token, 'control/off', subset=args.subset)
+                    return len(replies), [pod for pod, (_, _, code) in replies.items() if code == 200]
 
-                js = run(proxy, _query)
+                total, js = run(proxy, _query)
                 if js:
-                    pct = (len(js) * 100) / len(js)
+                    pct = (len(js) * 100) / total
                     logger.info('<%s> -> %d%% replies, %d pods off' % (token, pct, len(js)))
 
     return _Tool()

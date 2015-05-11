@@ -37,6 +37,7 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('-l', action='store_true', dest='long', help='display the entire log')
 
         def body(self, args, proxy):
 
@@ -44,12 +45,12 @@ def go():
 
                 def _query(zk):
                     replies = fire(zk, token, 'log')
-                    return {key: log for key, (_, log, code) in replies.items() if code == 200}
+                    return len(replies), {key: log for key, (_, log, code) in replies.items() if code == 200}
 
-                js = run(proxy, _query)
+                total, js = run(proxy, _query)
                 if js:
-                    pct = (len(js) * 100) / len(js)
-                    unrolled = ['- %s\n\n  %s' % (key, '  '.join(log[-64:])) for key, log in js.items()]
+                    pct = ((len(js) * 100) / total)
+                    unrolled = ['- %s\n\n  %s' % (key, '  '.join(log if args.long else log[-16:])) for key, log in js.items()]
                     logger.info('<%s> -> %d%% replies (%d pods total) ->\n%s' % (token, pct, len(js), '\n'.join(unrolled)))
 
 

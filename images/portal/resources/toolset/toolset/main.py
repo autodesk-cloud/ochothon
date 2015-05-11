@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import argparse
 import imp
 import logging
 import sys
 
+from argparse import ArgumentParser
 from os import listdir
 from os.path import dirname, isfile, join
 from ochopod.core.fsm import diagnostic
@@ -73,7 +73,7 @@ def go():
         def _usage():
             return 'available commands -> %s' % ', '.join(sorted(tools.keys()))
 
-        parser = argparse.ArgumentParser(description='', prefix_chars='+', usage=_usage())
+        parser = ArgumentParser(description='', prefix_chars='+', usage=_usage())
         parser.add_argument('command', type=str, help='command (e.g ls for instance)')
         parser.add_argument('extra', metavar='extra arguments', type=str, nargs='*', help='zero or more arguments')
         args = parser.parse_args()

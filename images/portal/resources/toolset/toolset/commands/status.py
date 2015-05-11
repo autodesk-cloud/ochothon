@@ -32,7 +32,7 @@ def go():
                 Displays high-level information for the specified cluster(s).
             '''
 
-        tag = 'grep'
+        tag = 'status'
 
         def customize(self, parser):
 
@@ -44,20 +44,22 @@ def go():
 
                 def _query(zk):
                     replies = fire(zk, token, 'info')
-                    return len(replies), [[key, '|', hints['ip'], '|', hints['process'], '|', hints['state']] for key, (_, hints, code) in sorted(replies.items()) if code == 200]
+                    ok = sum(1 for _, (_, hints, code) in replies.items() if code == 200 and hints['process'] == 'running')
 
-                total, js = run(proxy, _query)
+                    return [[key, '|', hints['ip'], '|', hints['process'], '|', hints['state']] for key, (_, hints, code) in replies.items() if code == 200]
+
+                js = run(proxy, _query)
                 if js:
 
                     #
                     # - justify & format the whole thing in a nice set of columns
                     #
-                    pct = (len(js) * 100) / total
+                    pct = (len(js) * 100) / len(js)
                     logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (token, pct, len(js)))
-                    rows = [['pod', '|', 'pod IP', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '']] + js
+                    rows = [['cluster', '|', 'pod IP', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '']] + js
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:
-                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+                        logger.info("  ".join((val.ljust(width) for val, width in zip(row, widths))))
 
 
     return _Tool()

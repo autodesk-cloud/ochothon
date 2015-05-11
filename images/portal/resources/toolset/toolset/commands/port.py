@@ -45,18 +45,18 @@ def go():
             for cluster in args.clusters:
 
                 def _query(zk):
-                    responses = fire(zk, cluster, 'info')
-                    return [[key, '|', hints['public'], '|', str(hints['ports'][port])] for key, (_, hints, code) in responses.items() if code == 200 and port in hints['ports']]
+                    replies = fire(zk, cluster, 'info')
+                    return len(replies), [[key, '|', hints['public'], '|', str(hints['ports'][port])] for key, (_, hints, code) in sorted(replies.items()) if code == 200 and port in hints['ports']]
 
-                js = run(proxy, _query)
+                total, js = run(proxy, _query)
                 if js:
 
                     #
                     # - justify & format the whole thing in a nice set of columns
                     #
-                    pct = (len(js) * 100) / len(js)
+                    pct = (len(js) * 100) / total
                     logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (cluster, pct, len(js)))
-                    rows = [['cluster', '|', 'node IP', '|', 'TCP'], ['', '|', '', '|', '']] + js
+                    rows = [['pod', '|', 'node IP', '|', 'TCP'], ['', '|', '', '|', '']] + js
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:
                         logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))

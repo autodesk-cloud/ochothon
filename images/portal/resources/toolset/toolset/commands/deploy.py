@@ -160,6 +160,7 @@ class _Automation(Thread):
                 #
                 # - note the marathon-ec2 ochopod bindings will set the application hint automatically
                 #   via environment variable (e.g no need to specify it here)
+                # - make sure to mount /etc/mesos and /opt/mesosphere to account for various mesos installs
                 #
                 ports = [_parse_port(token) for token in cfg['ports']] if 'ports' in cfg else []
                 spec = \
@@ -188,6 +189,11 @@ class _Automation(Thread):
                                         {
                                             'containerPath': '/etc/mesos',
                                             'hostPath': '/etc/mesos',
+                                            'mode': 'RO'
+                                        },
+                                        {
+                                            'containerPath': '/opt/mesosphere',
+                                            'hostPath': '/opt/mesosphere',
                                             'mode': 'RO'
                                         }
                                     ]

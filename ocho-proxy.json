@@ -5,14 +5,14 @@
     "env":{
         "ochopod_cluster":              "portal",
         "ochopod_debug":                "true",
-        "MARATHON_MASTER":              "<YOUR MASTER IP>:8080,..."
+        "MARATHON_MASTER":              "<YOUR MASTER IP #0>:8080,<YOUR MASTER IP #1>:8080..."
     },
     "container":{
         "type":"DOCKER",
-        "forcePullImage":true,
         "docker":{
             "network":                  "BRIDGE",
             "image":                    "paugamo/marathon-ec2-portal",
+            "forcePullImage":           true,
             "portMappings":[
                 {
                     "hostPort":         9000,
@@ -27,6 +27,11 @@
             {
                 "containerPath":        "/etc/mesos",
                 "hostPath":             "/etc/mesos",
+                "mode":                 "RO"
+            },
+            {
+                "containerPath":        "/opt/mesosphere",
+                "hostPath":             "/opt/mesosphere",
                 "mode":                 "RO"
             }
         ]

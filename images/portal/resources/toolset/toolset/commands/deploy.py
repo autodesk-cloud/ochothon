@@ -157,6 +157,10 @@ class _Automation(Thread):
                     else:
                         assert 0, 'invalid port syntax ("%s")' % token
 
+                #
+                # - note the marathon-ec2 ochopod bindings will set the application hint automatically
+                #   via environment variable (e.g no need to specify it here)
+                #
                 ports = [_parse_port(token) for token in cfg['ports']] if 'ports' in cfg else []
                 spec = \
                     {
@@ -167,7 +171,6 @@ class _Automation(Thread):
                                 'ochopod_cluster': cfg['cluster'],
                                 'ochopod_debug': 'true' if cfg['debug'] else 'false',
                                 'ochopod_namespace': self.namespace,
-                                'ochopod_application': qualified,
                                 'pod': json.dumps(cfg['settings'])
                             },
                         'container':

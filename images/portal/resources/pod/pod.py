@@ -19,7 +19,7 @@ import logging
 from ochopod.bindings.ec2.marathon import Pod
 from ochopod.models.piped import Actor as Piped
 
-logger = logging.getLogger('octopus')
+logger = logging.getLogger('ochopod')
 
 
 if __name__ == '__main__':
@@ -30,9 +30,6 @@ if __name__ == '__main__':
         
         def configure(self, _):
 
-            #
-            # - simply our our flask application
-            #
             return 'python portal.py', {}
 
     Pod().boot(Strategy)

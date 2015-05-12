@@ -69,7 +69,7 @@ class _Automation(Thread):
             @retry(timeout=self.timeout, pause=0)
             def _spin():
                 def _query(zk):
-                    replies = fire(zk, self.cluster, 'control/kill', subset=self.subset, timeout=5)
+                    replies = fire(zk, self.cluster, 'control/kill', subset=self.subset, timeout=self.timeout)
                     return [(code, seq) for seq, _, code in replies.values()]
 
                 #

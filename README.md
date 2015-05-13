@@ -10,7 +10,8 @@ It provides a self-contained web-shell ([**JQuery**](https://jquery.com/) rocks 
 allow you to create, query and manage your ochopod containers. It also lets you CURL your commands directly which is
 a great way to build your CI/CD pipeline !
 
-Please note we **only support bindings to run over AWS** at this point. This project was tested with **release 0.8.1**.
+Please note we **only support bindings to run over AWS** at this point. This project was initially tested with
+**release 0.8.1**.
 
 ### Getting started
 
@@ -20,6 +21,9 @@ You know how to do it. Just peruse the [**Mesosphere guide**](https://docs.mesos
 that will get you setup in minutes. You do not need any specific setup for your cluster but make sure your slaves
 are using [**Docker**](https://www.docker.com/) and can pull from whatever repository you plan on using. Also make
 sure you nodes can access each other of course.
+
+You can also use [**DCOS from Mesosphere**](https://mesosphere.com/) which will deploy for you the whole stack in a
+VPC (plus you get access to their cool dashboard).
 
 Once it is up look where your Marathon masters are running from and note their private & public IPs.
 
@@ -52,6 +56,8 @@ workstation).
 This IP (or the corresponding hostname, whatever you prefer) will be the _only thing you need to access from now on_.
 You can easily firewall it depending on your needs. Simply use your browser and look the proxy node IP up on port 9000.
 You should see our little web-shell (notice the elegant ascii art).
+
+If you happen to kill the portal application do not panic and just re-create a new one (it is completely stateless).
 
 ### The CLI
 

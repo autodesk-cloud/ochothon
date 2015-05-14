@@ -80,6 +80,7 @@ class _Automation(Thread):
                 #
                 defaults = \
                     {
+                        'start': True,
                         'debug': False,
                         'settings': {},
                         'ports': [8080],
@@ -170,7 +171,8 @@ class _Automation(Thread):
                         'env':
                             {
                                 'ochopod_cluster': cfg['cluster'],
-                                'ochopod_debug': 'true' if cfg['debug'] else 'false',
+                                'ochopod_debug': str(cfg['debug']).lower(),
+                                'ochopod_start': str(cfg['start']).lower(),
                                 'ochopod_namespace': self.namespace,
                                 'pod': json.dumps(cfg['settings'])
                             },

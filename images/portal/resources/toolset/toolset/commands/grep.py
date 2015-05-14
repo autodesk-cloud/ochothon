@@ -44,7 +44,8 @@ def go():
 
                 def _query(zk):
                     replies = fire(zk, token, 'info')
-                    return len(replies), [[key, '|', hints['ip'], '|', hints['process'], '|', hints['state']] for key, (_, hints, code) in sorted(replies.items()) if code == 200]
+                    return len(replies), [[key, '|', hints['ip'], '|', hints['node'], '|', hints['process'], '|', hints['state']]
+                                          for key, (_, hints, code) in sorted(replies.items()) if code == 200]
 
                 total, js = run(proxy, _query)
                 if js:
@@ -54,7 +55,7 @@ def go():
                     #
                     pct = (len(js) * 100) / total
                     logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (token, pct, len(js)))
-                    rows = [['pod', '|', 'pod IP', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '']] + js
+                    rows = [['pod', '|', 'pod IP', '|', 'node', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '', '|', '']] + js
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:
                         logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))

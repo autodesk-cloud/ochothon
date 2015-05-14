@@ -17,7 +17,6 @@
 import fnmatch
 import json
 import logging
-import os
 import pykka
 import requests
 import time

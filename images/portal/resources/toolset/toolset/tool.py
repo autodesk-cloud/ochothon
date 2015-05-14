@@ -21,7 +21,7 @@ from argparse import ArgumentParser
 from logging import DEBUG
 from ochopod.core.core import ROOT
 from ochopod.core.fsm import diagnostic, shutdown
-from ochopod.tools.io import fire, run, ZK
+from toolset.io import ZK
 
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')

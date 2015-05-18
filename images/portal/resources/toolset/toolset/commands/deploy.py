@@ -326,6 +326,9 @@ def go():
             # - load the overrides from yaml if specified
             #
             overrides = {}
+            if not args.overrides:
+                args.overrides = []
+                
             for path in args.overrides:
                 try:
                     with open(path, 'r') as f:

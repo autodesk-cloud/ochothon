@@ -1,9 +1,9 @@
 FROM paugamo/pod
 
 #
-# - add pip, pyyaml & reds
+# - add pip, pyyaml & redis
 #
-RUN apt-get update && apt-get -y install wget python-pip
+RUN apt-get update && apt-get -y install python-pip
 RUN pip install --no-use-wheel --upgrade distribute
 RUN pip install redis pyyaml
 

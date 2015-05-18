@@ -52,5 +52,5 @@ setup(
     author_email='autodesk.cloud.opensource@autodesk.com',
     url='https://git.autodesk.com/cloudplatform-compute/ochopod',
     license='Apache License, Version 2.0',
-    description='Ochopod/Kubernetes CLI toolset'
+    description='Ochopod/Marathon CLI toolset'
 )

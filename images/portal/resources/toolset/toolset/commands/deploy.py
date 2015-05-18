@@ -229,7 +229,7 @@ class _Automation(Thread):
                     def _query(zk):
                         replies = fire(zk, qualified, 'info')
                         return [(hints['process'], seq) for seq, hints, _ in replies.values()
-                                if hints['application'] == application]
+                                if hints['application'] == application and hints['process'] in ['dead', 'running']]
 
                     js = run(self.proxy, _query)
                     assert len(js) == self.pods, 'not all pods running yet'
@@ -261,6 +261,8 @@ class _Automation(Thread):
                     # - phase out & clean-up the pods that were previously running
                     # - simply exec() the kill tool for this
                     #
+                    logger.debug('%s : pausing for %d seconds before phase out...' % (self.template, self.cycle))
+                    time.sleep(self.cycle)
                     logger.debug('%s : phasing out %s' % (self.template, ', '.join(['# %d' % seq for seq in prev])))
                     code, lines = shell('toolset kill %s -i %s -d' % (qualified, ' '.join(['%d' % seq for seq in prev])))
                     assert code == 0, 'failed to run <kill>'
@@ -307,14 +309,13 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('containers', type=str, nargs='*', default='*', help='1+ container yaml definitions (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-c', action='store_true', dest='cycle', help='cycling (e.g the current pods will be phased out)')
+            parser.add_argument('-c', action='store', dest='cycle', type=int, help='delay in seconds after which the current pods will be phased out')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
-            parser.add_argument('-n', action='store', dest='namespace', type=str, default='default', help='cluster namespace')
+            parser.add_argument('-n', action='store', dest='namespace', type=str, default='marathon', help='namespace')
             parser.add_argument('-o', action='store', dest='overrides', type=str, help='overrides yaml file')
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
             parser.add_argument('-s', action='store', dest='suffix', type=str, help='optional cluster suffix')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
-
 
         def body(self, args, proxy):
 

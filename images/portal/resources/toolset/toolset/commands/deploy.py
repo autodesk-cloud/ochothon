@@ -298,8 +298,9 @@ def go():
                 containers to be running (but not necessarily configured & clustered yet). If no container ended up
                 being deployed the underlying marathon application will automatically get deleted. If -c is specified
                 any pod previously running for the specified cluster(s) will be gracefully phased out once the new pods
-                are up. It is possible to add a suffix to the cluster identifier defined in the yaml configuration by
-                using the -s option (typically to run the same functionality in different contexts).
+                are up and after the specified duration in seconds. It is possible to add a suffix to the cluster
+                identifier defined in the yaml configuration by using the -s option (typically to run the same
+                functionality in different contexts).
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
@@ -312,7 +313,7 @@ def go():
             parser.add_argument('-c', action='store', dest='cycle', type=int, help='delay in seconds after which the current pods will be phased out')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-n', action='store', dest='namespace', type=str, default='marathon', help='namespace')
-            parser.add_argument('-o', action='store', dest='overrides', type=str, help='overrides yaml file')
+            parser.add_argument('-o', action='store', dest='overrides', type=str, nargs='+', help='overrides YAML file(s)')
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
             parser.add_argument('-s', action='store', dest='suffix', type=str, help='optional cluster suffix')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
@@ -325,14 +326,14 @@ def go():
             # - load the overrides from yaml if specified
             #
             overrides = {}
-            if args.overrides:
+            for path in args.overrides:
                 try:
-                    with open(args.overrides, 'r') as f:
-                        overrides = yaml.load(f)
+                    with open(path, 'r') as f:
+                        overrides.update(yaml.load(f))
 
                 except IOError:
 
-                    logger.debug('unable to load %s, skipping overrides' % args.overrides)
+                    logger.debug('unable to load %s' % args.overrides)
 
                 except YAMLError as failure:
 

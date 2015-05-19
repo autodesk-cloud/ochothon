@@ -117,11 +117,12 @@ class _Automation(Thread):
                     # - walk through the settings and flag any null value
                     #
                     missing = []
-                    for key, value in cfg.items():
-                        if value is None:
-                            missing += ['%s.%s' % ('.'.join(prefix), key)]
-                        elif isinstance(value, dict):
-                            missing += _nullcheck(value, prefix + [key])
+                    if cfg is not None:
+                        for key, value in cfg.items():
+                            if value is None:
+                                missing += ['%s.%s' % ('.'.join(prefix), key)]
+                            elif isinstance(value, dict):
+                                missing += _nullcheck(value, prefix + [key])
 
                     return missing
 
@@ -328,7 +329,7 @@ def go():
             overrides = {}
             if not args.overrides:
                 args.overrides = []
-                
+
             for path in args.overrides:
                 try:
                     with open(path, 'r') as f:

@@ -36,7 +36,7 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, template, overrides, namespace, pods, cycle, suffix, timeout):
+    def __init__(self, proxy, template, overrides, namespace, pods, cycle, suffix, timeout, strict):
         super(_Automation, self).__init__()
 
         self.cycle = cycle
@@ -52,6 +52,7 @@ class _Automation(Thread):
         self.proxy = proxy
         self.template = template
         self.suffix = suffix
+        self.strict = strict
         self.timeout = max(timeout, 5)
 
         self.start()
@@ -74,6 +75,11 @@ class _Automation(Thread):
 
                 #
                 # - parse the template yaml file (e.g container definition)
+                #
+                raw = yaml.load(f)
+                assert raw, 'empty YAML input (user error ?)'
+
+                #
                 # - merge with our defaults
                 # - we want at least the cluster & image settings
                 # - TCP 8080 is added by default to the port list
@@ -87,7 +93,7 @@ class _Automation(Thread):
                         'verbatim': {}
                     }
 
-                cfg = merge(defaults, yaml.load(f))
+                cfg = merge(defaults, raw)
                 assert 'cluster' in cfg, 'cluster identifier undefined (user error ?)'
                 assert 'image' in cfg, 'docker image undefined (user error ?)'
 
@@ -225,12 +231,13 @@ class _Automation(Thread):
                 # - the 'application' hint is set by design to the marathon application identifier
                 # - the sequence counters allocated to our new pods are returned as well
                 #
+                target = ['dead', 'running'] if self.strict else ['dead', 'stopped', 'running']
                 @retry(timeout=self.timeout, pause=3, default={})
                 def _spin():
                     def _query(zk):
                         replies = fire(zk, qualified, 'info')
                         return [(hints['process'], seq) for seq, hints, _ in replies.values()
-                                if hints['application'] == application and hints['process'] in ['dead', 'running']]
+                                if hints['application'] == application and hints['process'] in target]
 
                     js = run(self.proxy, _query)
                     assert len(js) == self.pods, 'not all pods running yet'
@@ -295,13 +302,15 @@ def go():
 
         help = \
             '''
-                Spawns a marathon application for each of the specified cluster(s). The tool will wait for all
-                containers to be running (but not necessarily configured & clustered yet). If no container ended up
-                being deployed the underlying marathon application will automatically get deleted. If -c is specified
-                any pod previously running for the specified cluster(s) will be gracefully phased out once the new pods
-                are up and after the specified duration in seconds. It is possible to add a suffix to the cluster
-                identifier defined in the yaml configuration by using the -s option (typically to run the same
-                functionality in different contexts).
+                Spawns a marathon application for each of the specified cluster(s). The tool will by default wait for
+                all containers to be up (but not necessarily configured & clustered yet) while using the --strict
+                switch will ensure we wait for all containers to be fully configured.
+
+                If no container ended up being deployed the underlying marathon application will automatically get
+                deleted. If -c is specified any pod previously running for the specified cluster(s) will be gracefully
+                phased out once the new pods are up and after the specified duration in seconds. It is possible to add
+                a suffix to the cluster identifier defined in the yaml configuration by using the -s option (typically
+                to run the same functionality in different contexts).
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
@@ -310,7 +319,7 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('containers', type=str, nargs='*', default='*', help='1+ container yaml definitions (can be a glob pattern, e.g foo*)')
+            parser.add_argument('containers', type=str, nargs='+', help='1+ YAML definitions (e.g marathon.yml)')
             parser.add_argument('-c', action='store', dest='cycle', type=int, help='delay in seconds after which the current pods will be phased out')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-n', action='store', dest='namespace', type=str, default='marathon', help='namespace')
@@ -318,6 +327,7 @@ def go():
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
             parser.add_argument('-s', action='store', dest='suffix', type=str, help='optional cluster suffix')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
+            parser.add_argument('--strict', action='store_true', dest='strict', help='waits until all pods are running')
 
         def body(self, args, proxy):
 
@@ -356,7 +366,8 @@ def go():
                 args.pods,
                 args.cycle,
                 args.suffix,
-                args.timeout) for template in args.containers}
+                args.timeout,
+                args.strict) for template in args.containers}
 
             #
             # - wait for all our threads to join

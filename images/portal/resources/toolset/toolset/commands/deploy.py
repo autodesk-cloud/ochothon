@@ -143,12 +143,16 @@ class _Automation(Thread):
                 #
                 def _query(zk):
                     replies = fire(zk, qualified, 'info')
-                    return [seq for _, (seq, _, code) in replies.items() if code == 200]
+                    return [(hints['process'], seq) for _, (seq, hints, code) in replies.items() if code == 200]
 
                 prev = run(self.proxy, _query)
                 if self.cycle and not self.pods:
-                    self.pods = len(prev)
-                elif not self.pods:
+                    self.pods = sum(1 if state != 'dead' else 0 for state, _ in prev)
+
+                #
+                # - if we still have no target default it to 1 single pod
+                #
+                if not self.pods:
                     self.pods = 1
 
                 #
@@ -248,7 +252,7 @@ class _Automation(Thread):
                 up = [seq for _, seq in js]
                 self.out['up'] = up
                 self.out['ok'] = self.pods == running
-                logger.debug('%s : %d/%d pods are running -> %s' % (self.template, running, self.pods, ', '.join(['#%d' % seq for seq in up])))
+                logger.debug('%s : %d/%d pods are running ' % (self.template, running, self.pods))
 
                 if not up:
 
@@ -269,12 +273,11 @@ class _Automation(Thread):
                     # - phase out & clean-up the pods that were previously running
                     # - simply exec() the kill tool for this
                     #
-                    logger.debug('%s : pausing for %d seconds before phase out...' % (self.template, self.cycle))
                     time.sleep(self.cycle)
-                    logger.debug('%s : phasing out %s' % (self.template, ', '.join(['# %d' % seq for seq in prev])))
-                    code, lines = shell('toolset kill %s -i %s -d' % (qualified, ' '.join(['%d' % seq for seq in prev])))
-                    assert code == 0, 'failed to run <kill>'
-                    self.out['down'] = prev
+                    down = [seq for _, seq in prev]
+                    code, _ = shell('toolset kill %s -i %s -d' % (qualified, ' '.join(['%d' % seq for seq in down])))
+                    assert code == 0, 'failed to phase out %d pods' % len(prev)
+                    self.out['down'] = down
 
         except AssertionError as failure:
 
@@ -313,6 +316,8 @@ def go():
                 to run the same functionality in different contexts).
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
+
+                Please note we force a docker image pull when instantiating the new application.
             '''
 
         tag = 'deploy'
@@ -376,7 +381,8 @@ def go():
             outcome = {key: thread.join() for key, thread in threads.items()}
             pct = (100 * sum(1 for _, js in outcome.items() if js['ok'])) / n if n else 0
             up = sum(len(js['up']) for _, js in outcome.items())
-            logger.info(json.dumps(outcome) if args.json else '%d%% success (spawned %d pods)' % (pct, up))
+            down = sum(len(js['down']) for _, js in outcome.items())
+            logger.info(json.dumps(outcome) if args.json else '%d%% success (+%d/-%d)' % (pct, up, down))
             return 0 if pct == 100 else 1
 
     return _Tool()

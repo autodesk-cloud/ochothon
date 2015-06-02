@@ -148,7 +148,9 @@ def go():
             '''
                 Gracefully shuts the ochopod containers down for the specified cluster(s). Individual containers can
                 also be cherry-picked by specifying their sequence index and using -i. Any marathon application whose
-                containers are *all* dead will automatically get deleted.
+                containers are *all* dead will automatically get deleted. Please note you must by default use -i and
+                specify what containers to kill. If you want to kill multiple containers at once you must specify
+                --force.
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
@@ -158,11 +160,14 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('-i', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
+            parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, proxy):
+
+            assert args.force or args.subset, 'you must specify --force if -i is not set'
 
             #
             # - run the workflow proper (one thread per container definition)

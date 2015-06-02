@@ -31,7 +31,8 @@ def go():
             '''
                 Switches one or more containers off (their sub-process being gracefully shutdown while the pod keeps
                 running). Individual containers can also be cherry-picked by specifying their sequence index and using
-                -i.
+                -i. Please note you must by default use -i and specify what containers to turn off. If you want to turn
+                multiple containers off at once you must specify --force.
             '''
 
         tag = 'off'
@@ -40,8 +41,11 @@ def go():
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, proxy):
+
+            assert args.force or args.subset, 'you must specify --force if -i is not set'
 
             for token in args.clusters:
 

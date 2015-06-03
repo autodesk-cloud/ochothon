@@ -34,21 +34,11 @@ def cli():
 
         The proxy IP is either passed as the first command-line argument or vi a $OCHOPOD_PROXY.
     """
-
-    if len(sys.argv) > 1:
-        ip = sys.argv[1]
-
-    elif 'OCHOPOD_PROXY' in os.environ:
-        ip = os.environ['OCHOPOD_PROXY']
-
-    else:
-        print 'either set $OCHOPOD_PROXY or pass the proxy IP as an argument'
-        exit(1)
-
     class Shell(cmd.Cmd):
 
-        prompt = '%s > ' % ip
-        ruler = '-'
+        def __init__(self, ip):
+            prompt = '%s > ' % ip
+            ruler = '-'
 
         def precmd(self, line):
             return 'shell %s' % line if line not in ['exit'] else line
@@ -78,10 +68,30 @@ def cli():
             pid.wait()
             return pid.returncode, pid.stdout.read()
 
-    print('welcome to the ocho CLI ! (CTRL-C or exit to get out)')
     try:
+        #
+        # - partition ip and args by looking for OCHOPOD_PROXY first.
+        # - if OCHOPOD_PROXY is not used, treat the first argument as the ip.
+        #
+        if 'OCHOPOD_PROXY' in os.environ:
+            ip = os.environ['OCHOPOD_PROXY']
+            args = sys.argv[1:]
+        elif len(sys.argv) > 1:
+            ip = sys.argv[1]
+            args = sys.argv[2:]
+        else:
+            print 'either set $OCHOPOD_PROXY or pass the proxy IP as an argument'
+            exit(1)
 
-        Shell().cmdloop()
+        #
+        # - determine whether to run in interactive or non-interactive mode.
+        #
+        if (len(args) > 0):
+            command = " ".join(args)
+            Shell(ip).do_shell(command)
+        else:
+            print('welcome to the ocho CLI ! (CTRL-C or exit to get out)')
+            Shell(ip).cmdloop()
 
     except KeyboardInterrupt:
         exit(0)

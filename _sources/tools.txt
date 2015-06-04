@@ -98,14 +98,17 @@ Any container from cluster *web-server* under namespace *dev* will thus see *deb
 Port mappings
 *************
 
-You can define the TCP ports you wish to expose via the lightweight *ports* array setting. If you need to expose a
-port on both the container and its host simply add a *. This will be mapped to the syntax Marathon_ expects. For
-instance:
+You can define the TCP ports you wish to expose via the lightweight *ports* array setting. Each port binding can be
+either an integer (default case mapping this port to some random port on the underlying node), two integers (the first
+one being the container port and the second the corresponding port on the host) or an integer followed by a * (same
+as before except both ports are the same). This will be mapped to the syntax Marathon_ expects. For instance:
 
 .. code:: yaml
 
     ports:
+        - 3000
         - 5000 *
+        - 9000 9001
 
 Verbatim settings
 *****************

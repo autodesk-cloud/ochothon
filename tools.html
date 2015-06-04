@@ -135,11 +135,14 @@ prod.web-server:
 </div>
 <div class="section" id="port-mappings">
 <h3>Port mappings<a class="headerlink" href="#port-mappings" title="Permalink to this headline">¶</a></h3>
-<p>You can define the TCP ports you wish to expose via the lightweight <em>ports</em> array setting. If you need to expose a
-port on both the container and its host simply add a <a href="#id1"><span class="problematic" id="id2">*</span></a>. This will be mapped to the syntax <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> expects. For
-instance:</p>
+<p>You can define the TCP ports you wish to expose via the lightweight <em>ports</em> array setting. Each port binding can be
+either an integer (default case mapping this port to some random port on the underlying node), two integers (the first
+one being the container port and the second the corresponding port on the host) or an integer followed by a * (same
+as before except both ports are the same). This will be mapped to the syntax <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> expects. For instance:</p>
 <div class="code yaml highlight-python"><div class="highlight"><pre>ports:
+    - 3000
     - 5000 *
+    - 9000 9001
 </pre></div>
 </div>
 </div>

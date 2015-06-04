@@ -157,7 +157,9 @@ class _Automation(Thread):
 
                 #
                 # - setup our port list
-                # - any port prefixed by '* ' will be set on the host node as well
+                # - the port binding is specified either by an integer (container port -> dynamic mesos port), by
+                #   two integers (container port -> host port) or by an integer followed by a * (container port ->
+                #   same port on the host)
                 # - the marathon pods must by design map /etc/mesos
                 #
                 def _parse_port(token):
@@ -166,6 +168,10 @@ class _Automation(Thread):
                     elif isinstance(token, str) and token.endswith(' *'):
                         port = int(token[:-2])
                         return {'containerPort': port, 'hostPort': port}
+                    elif isinstance(token, str):
+                        ports = token.split(' ')
+                        assert len(ports) == 2, 'invalid port syntax (must be two integers separated by 1+ spaces)'
+                        return {'containerPort': int(ports[0]), 'hostPort': int(ports[1])}
                     else:
                         assert 0, 'invalid port syntax ("%s")' % token
 

@@ -87,7 +87,7 @@ def cli():
         #
         # - determine whether to run in interactive or non-interactive mode.
         #
-        if (len(args) > 0):
+        if len(args):
             command = " ".join(args)
             Shell(ip).do_shell(command)
         else:

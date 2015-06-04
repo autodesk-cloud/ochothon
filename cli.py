@@ -37,8 +37,9 @@ def cli():
     class Shell(cmd.Cmd):
 
         def __init__(self, ip):
-            prompt = '%s > ' % ip
-            ruler = '-'
+            cmd.Cmd.__init__(self)
+            self.prompt = '%s > ' % ip
+            self.ruler = '-'
 
         def precmd(self, line):
             return 'shell %s' % line if line not in ['exit'] else line

@@ -29,7 +29,8 @@ def go():
 
         help = \
             '''
-                Displays the current remapping for a given TCP port across the specified cluster(s).
+                Displays the current remapping for a given TCP port across the specified cluster(s). This only applies
+                for public slaves outside of a VPC.
             '''
 
         tag = 'port'
@@ -56,7 +57,7 @@ def go():
                     #
                     pct = (len(js) * 100) / total
                     logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (cluster, pct, len(js)))
-                    rows = [['pod', '|', 'node IP', '|', 'TCP'], ['', '|', '', '|', '']] + js
+                    rows = [['pod', '|', 'public IP', '|', 'TCP'], ['', '|', '', '|', '']] + js
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:
                         logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))

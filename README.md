@@ -10,27 +10,22 @@ It provides a self-contained web-shell ([**JQuery**](https://jquery.com/) rocks 
 allow you to create, query and manage your ochopod containers. It also lets you CURL your commands directly which is
 a great way to build your CI/CD pipeline !
 
-Please note we **only support bindings to run over AWS** at this point. This project was initially tested with
-**release 0.8.1**.
+Please note we **only support bindings to run over AWS** at this point.
 
 ### Getting started
 
-#### Step 1 : install Mesos/Marathon on AWS
+#### Step 1 : install [**DCOS from Mesosphere**](https://mesosphere.com/)
 
-You know how to do it. Just peruse the [**Mesosphere guide**](https://docs.mesosphere.com/getting-started/datacenter/install/)
-that will get you setup in minutes. You do not need any specific setup for your cluster but make sure your slaves
-are using [**Docker**](https://www.docker.com/) and can pull from whatever repository you plan on using. Also make
-sure you nodes can access each other of course.
+You know how to do it. Just peruse their [**documentation**](http://beta-docs.mesosphere.com/install/awscluster/). The
+script will gently deploy for you the whole stack inside of a VPC (plus you get access to their very cool dashboard).
+Make sure to specify at least one public slave.
 
-You can also use [**DCOS from Mesosphere**](https://mesosphere.com/) which will deploy for you the whole stack in a
-VPC (plus you get access to their cool dashboard).
-
-Once it is up look where your Marathon masters are running from and note their private & public IPs.
+Once the stack is up look where your Marathon masters are running from and note their private IPs.
 
 #### Step 2 : deploy our proxy
 
-We use a simple proxy mechanism to interact with our containers. Edit the provided ```ocho-proxy.json``` and specify
-the **internal** IP for each master (just the IP, not a URL) including port 8080. For instance:
+We use a simple proxy mechanism to interact with our containers. Edit the provided ```dcos.json``` configuration and
+specify the **internal** IP for each master (just the IP, not a URL) including port 8080. For instance:
 
 ```
 "MARATHON_MASTER": "10.37.202.103:8080,10.169.225.66:8080"
@@ -39,19 +34,17 @@ the **internal** IP for each master (just the IP, not a URL) including port 8080
 _Please note this (clunky) procedure is temporary until a way to find out what the masters are from within a container
 is implemented in Marathon._
 
-Then create the proxy application using CURL for instance. Make sure to post to one of your masters using its public
-IP if you are on your workstation. For instance:
+Then launch that application using CURL. It will automatically be assigned to one of your public slaves. You can post
+to the admin ELB that was deployed or directly to one of the masters (using its public IP of course). For instance:
 
 ```
-$ curl -s -XPOST http://54.159.110.218:8080/v2/apps -d@ocho-proxy.json -H "Content-Type: application/json"
+$ curl -s -XPOST http://54.159.110.218:8080/v2/apps -d@dcos.json -H "Content-Type: application/json"
 ```
 
-Wait a bit until the _ocho-proxy_ application is up and look at its only task. You can do this using the cool Marathon
-web UI.
-
-Note its internal EC2 IP address (usually something like ```ip-172-20-0-11.ec2.internal```). Go in your AWS EC2 console
-and find out what slave matches it. What you want of course it the slave public IP (e.g the one you can reach from your
-workstation).
+Wait a bit until the _ocho-proxy_ application is up and look at its only task. You can do this using the Marathon
+web UI. Note its internal EC2 IP address (usually something like ```ip-172-20-0-11.ec2.internal```). Go in your AWS
+EC2 console and find out what slave matches it. What you want of course it the slave public IP (e.g the one you can
+reach from your workstation).
 
 This IP (or the corresponding hostname, whatever you prefer) will be the _only thing you need to access from now on_.
 You can easily firewall it depending on your needs. Simply use your browser and look the proxy node IP up on port 9000.

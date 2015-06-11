@@ -6,16 +6,19 @@ This project is a small development PaaS leveraging [**Ochopod**](https://github
 and overlaying it on top of [**Marathon**](https://mesosphere.github.io/marathon/). It is the Marathon equivalent of
 [**Ochonetes**](https://github.com/autodesk-cloud/ochonetes).
 
-Your containers will run by default in a VPC while you interact from your workstation with a proxy which provides a
-self-contained web-shell ([**JQuery**](https://jquery.com/) rocks !). This proxy hosts our little toolkit that will
-allow you to create, query and manage your ochopod containers. It also lets you CURL your commands directly which is
-a great way to build your CI/CD pipeline !
+You can either use any vanilla Mesos/Marathon setup or be cool and adopt [**DCOS**](https://mesosphere.com/) which
+provides an elaborate VPC setup plus dashboard !
+
+You will be able to interact from your workstation with a proxy which provides a self-contained web-shell
+([**JQuery**](https://jquery.com/) rocks !). This proxy hosts our little toolkit that allows you to create, query and
+manage your Ochopod containers. It also lets you CURL your commands directly which is a great way to build your CI/CD
+pipeline !
 
 Please note we **only support bindings to run over AWS** at this point.
 
 ### Getting started
 
-#### Step 1 : install [**DCOS**](https://mesosphere.com/)
+#### Step 1 : install DCOS
 
 You know how to do it. Just peruse their [**documentation**](http://beta-docs.mesosphere.com/install/awscluster/). The
 script will gently deploy for you the whole stack inside of a VPC (plus you get access to their very cool dashboard).

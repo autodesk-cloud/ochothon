@@ -62,7 +62,8 @@ def cli():
                 line = ' '.join([basename(token) if isfile(expanduser(token)) else token for token in tokens])
                 snippet = 'curl -X POST -H "X-Shell:%s" %s %s:9000/shell' % (line, ' '.join(files), ip)
                 code, out = self._exec(snippet)
-                print json.loads(out)['out'] if code is 0 else 'i/o failure (is the proxy down ?)'
+                js = json.loads(out.decode('utf-8'))
+                print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')
 
         def _exec(self, snippet):
             pid = Popen(snippet, shell=True, stdout=PIPE, stderr=PIPE)
@@ -81,7 +82,7 @@ def cli():
             ip = sys.argv[1]
             args = sys.argv[2:]
         else:
-            print 'either set $OCHOPOD_PROXY or pass the proxy IP as an argument'
+            print('either set $OCHOPOD_PROXY or pass the proxy IP as an argument')
             exit(1)
 
         #

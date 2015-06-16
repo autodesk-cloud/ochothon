@@ -29,7 +29,8 @@ def go():
 
         help = \
             '''
-                Dumps the internal ochopod log for the specified cluster(s).
+                Dumps the internal ochopod log for the specified cluster(s). Can also dump callback application
+                logs with the --application flag.
             '''
 
         tag = 'log'
@@ -38,13 +39,14 @@ def go():
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-l', action='store_true', dest='long', help='display the entire log')
+            parser.add_argument('-a', '--application', action='store_true', help="display logs for pod's configure() callback application")
 
         def body(self, args, proxy):
 
             for token in args.clusters:
 
                 def _query(zk):
-                    replies = fire(zk, token, 'log')
+                    replies = fire(zk, token, ('log/app' if args.application else 'log'))
                     return len(replies), {key: log for key, (_, log, code) in replies.items() if code == 200}
 
                 total, js = run(proxy, _query)

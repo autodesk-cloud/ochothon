@@ -5,6 +5,7 @@ import time
 import fnmatch
 import pprint
 
+from ochopod.core.utils import retry
 from random import choice
 from requests import delete, post, get, put
 from io import fire, run, ZK
@@ -13,7 +14,21 @@ from io import fire, run, ZK
 logger = logging.getLogger('ochopod')
 
 def scale(scalees={}, timeout=60.0):
+    """
+        Tool for scaling a set of scalee apps running under Ochopod and Marathon using a dict of specifications.
+        E.g., you may use:
+        scalees = {
+            '<namespace>.<cluster>': {
+                'instances': 5,
+                'mem': 32.0
+            }
+        }
+        Scaling parameters include: 'instances', 'mem', 'cpu'.
 
+        :param scalees: a dict mapping a cluster/namespace key to a secondary dict of specifications, according to which
+        the corresponding app will be scaled.
+        :param timeout: float amount of seconds allowed for scaling each namespace/cluster in scalees.    
+    """
     #
     # - we need to pass the framework master IPs around (ugly)
     #
@@ -34,8 +49,6 @@ def scale(scalees={}, timeout=60.0):
     _, ocho_data = run(proxy, _query, timeout)
     
     mara_data = json.loads(get('http://%s/v2/apps' % master).text)
-    pprint.pprint(ocho_data)
-    pprint.pprint(mara_data)
 
     # def _scale(running, name, num):
     #     if ocho_data[name] == running['id']:
@@ -45,9 +58,10 @@ def scale(scalees={}, timeout=60.0):
     for name, spec in scalees.iteritems():
 
         try:
+
             filtered = set(fnmatch.filter(ocho_data.keys(), name))
             assert len(filtered) < 2, ('Could not scale: Found multiple clusters under %s' % name)
-            assert len(filtered) > 0, ('Could not scale: No cluster under %s was found' % name)
+            assert len(filtered) > 0, ('Could not scale: No namespace/cluster under %s was found' % name)
             name = filtered.pop()
             # assert ocho_data[name] in [running['id'] for running in mara_data['apps']], ('Could not scale: Ochopod reported wrong app id for %s' % name)
             # mara_data['apps'] = map(lambda running: _scale(running, name, num), mara_data['apps'])
@@ -55,7 +69,31 @@ def scale(scalees={}, timeout=60.0):
             code = reply.status_code
             assert code == 200 or code == 201, 'submission failed (HTTP %d)' % code
 
+            #
+            # - wait for all the pods to be in the 'running' mode
+            # - the 'application' hint is set by design to the marathon application identifier
+            # - the sequence counters allocated to our new pods are returned as well
+            #
+            target = ['dead', 'running']
+            @retry(timeout=timeout, pause=3, default={})
+            def _spin():
+                def _query(zk):
+                    replies = fire(zk, name, 'info')
+                    return [(hints['process'], seq) for seq, hints, _ in replies.values()
+                            if hints['application'] == application and hints['process'] in target]
+
+                js = run(proxy, _query)
+                assert len(js) == spec['instances'], 'not all pods running yet'
+                return js
+
+            js = _spin()
+            running = sum(1 for state, _ in js if state is not 'dead')
+            up = [seq for _, seq in js]
+            ok = spec['instances'] == running
+            logger.debug('Scaled: %d/%d pods are running for %s' % (running, spec['instances'], name))
+
         except Exception as e:
+
             print e
             logger.warning(e)
 

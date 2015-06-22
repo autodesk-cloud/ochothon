@@ -27,7 +27,7 @@ logger = logging.getLogger('ochopod')
 
 def metrics(regex='*', timeout=60.0):
     """
-        Tool for polling ochopod cluster for metrics.
+        Tool for polling ochopod cluster for metrics returned during sanity_checks.
 
         :param regex: a str to match against namespace/cluster keys for retrieving metrics.
         :param timeout: float amount of seconds allowed for sending the poll request.    
@@ -44,7 +44,7 @@ def metrics(regex='*', timeout=60.0):
     
     return js
 
-def resources():
+def resources(regex='*'):
     """
         Tool for polling mesos masters for available and unavailable resources. Equivalent to a call
         to mesos's /metrics/snapshot endpoint.  
@@ -55,4 +55,5 @@ def resources():
     code = reply.status_code
     assert code == 200 or code == 201, 'mesos /metrics/snapshot request failed (HTTP %d)' % code
     data = json.loads(reply.text)
+    data = dict(filter(lambda x: fnmatch.fnmatch(x[0], regex), [[key, val] for key, val in data.iteritems()]))
     return data

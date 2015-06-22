@@ -17,21 +17,41 @@
 import logging
 import json
 import os
+import pprint
+import fnmatch
 from io import fire, run, ZK
 
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
 
-def poll(timeout=60.0):
+def poll(regex='*', timeout=60.0):
 
-    # def _query(zk):
-    #     replies = fire(zk, '*', 'info')
-    #     return len(replies), [hints['metrics'] for _, (_, hints, code) in replies.items() if code == 200]
+    def _query(zk):
+        replies = fire(zk, '*', 'info')
+        pprint.pprint(replies)
+        return len(replies), dict((key, hints['metrics']) for key, (index, hints, code) in replies.items() if 
+            code == 200 and 'metrics' in hints and fnmatch.fnmatch(key, regex))
 
-    # proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
+    proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
 
-    # total, js = run(proxy, _query, timeout)
+    _, js = run(proxy, _query, timeout)
     
-    # return json.loads(js)
+    return js
 
-    return "balls"
+        
+# class Poll():
+
+#     def __init__(self, regex='*', timeout=60.0):
+#         self.regex = regex
+#         self.timeout = timeout
+
+#     def _query(self, zk):
+#         replies = fire(zk, '*', 'info')
+#         pprint.pprint(replies)
+#         return [(key, hints['metrics']) for key, (index, hints, code) in replies.items() if \
+#             code == 200 and 'metrics' in hints and fnmatch.fnmatch(key, self.regex)]
+
+#     def go(self):
+#         proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
+#         total, js = run(proxy, self._query, self.timeout)
+#         return json.loads(js)

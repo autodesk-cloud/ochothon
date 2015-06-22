@@ -28,9 +28,16 @@ if __name__ == '__main__':
 
         cwd = '/opt/scaler'
         pipe_subprocess = True
-        
-        def configure(self, _):
+        checks = 3
+        check_every = 10.0
+        pipe_subprocess = True
+        metrics = True
 
+        def sanity_check(self, pid):
+            logger.info("Gathering metrics, returning: {'lol': 'asdfasdf'}")
+            return {'lol': 'asdfasdf'}
+
+        def configure(self, _):
             return 'python scaler.py', {}
 
     Pod().boot(Strategy)

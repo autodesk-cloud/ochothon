@@ -28,6 +28,7 @@ from ochopod.core.fsm import diagnostic, spin_lock
 from ochopod.core.utils import shell
 from subprocess import Popen, PIPE
 from toolset.poll import poll
+from toolset.scale import scale
 
 logger = logging.getLogger('ochopod')
 
@@ -40,14 +41,17 @@ if __name__ == '__main__':
         # - enable CLI logging
         # - pass down the ZK ensemble coordinate
         #
-        # env = os.environ
-        # hints = json.loads(env['ochopod'])
-        # ochopod.enable_cli_log(debug=hints['debug'] == 'true')
-        # env['OCHOPOD_ZK'] = hints['zk']
+        env = os.environ
+        hints = json.loads(env['ochopod'])
+        ochopod.enable_cli_log(debug=hints['debug'] == 'true')
+        env['OCHOPOD_ZK'] = hints['zk']
+
+        scale({'testy.scaler': {'instances' : 2}})
 
         for i in range(10):
-            print poll()
             time.sleep(10.0)
+            print poll()
+
 
     except Exception as failure:
 

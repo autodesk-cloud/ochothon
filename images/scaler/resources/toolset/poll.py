@@ -17,7 +17,6 @@
 import logging
 import json
 import os
-import pprint
 import fnmatch
 from io import fire, run, ZK
 
@@ -25,10 +24,15 @@ from io import fire, run, ZK
 logger = logging.getLogger('ochopod')
 
 def poll(regex='*', timeout=60.0):
+    """
+        Tool for polling ochopod cluster for metrics.
+
+        :param regex: a str to match against namespace/cluster keys for retrieving metrics.
+        :param timeout: float amount of seconds allowed for sending the poll request.    
+    """
 
     def _query(zk):
         replies = fire(zk, '*', 'info')
-        pprint.pprint(replies)
         return len(replies), dict((key, hints['metrics']) for key, (index, hints, code) in replies.items() if 
             code == 200 and 'metrics' in hints and fnmatch.fnmatch(key, regex))
 
@@ -37,21 +41,3 @@ def poll(regex='*', timeout=60.0):
     _, js = run(proxy, _query, timeout)
     
     return js
-
-        
-# class Poll():
-
-#     def __init__(self, regex='*', timeout=60.0):
-#         self.regex = regex
-#         self.timeout = timeout
-
-#     def _query(self, zk):
-#         replies = fire(zk, '*', 'info')
-#         pprint.pprint(replies)
-#         return [(key, hints['metrics']) for key, (index, hints, code) in replies.items() if \
-#             code == 200 and 'metrics' in hints and fnmatch.fnmatch(key, self.regex)]
-
-#     def go(self):
-#         proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
-#         total, js = run(proxy, self._query, self.timeout)
-#         return json.loads(js)

@@ -1,13 +1,11 @@
 import json
 import logging
 import os
-import time
 import fnmatch
-import pprint
 
 from ochopod.core.utils import retry
 from random import choice
-from requests import delete, post, get, put
+from requests import get, put
 from io import fire, run, ZK
 
 #: Our ochopod logger.
@@ -29,6 +27,7 @@ def scale(scalees={}, timeout=60.0):
         the corresponding app will be scaled.
         :param timeout: float amount of seconds allowed for scaling each namespace/cluster in scalees.    
     """
+
     #
     # - we need to pass the framework master IPs around (ugly)
     #
@@ -50,21 +49,14 @@ def scale(scalees={}, timeout=60.0):
     
     mara_data = json.loads(get('http://%s/v2/apps' % master).text)
 
-    # def _scale(running, name, num):
-    #     if ocho_data[name] == running['id']:
-    #         running['instances'] = num
-    #     return running
-
     for name, spec in scalees.iteritems():
 
         try:
 
             filtered = set(fnmatch.filter(ocho_data.keys(), name))
             assert len(filtered) < 2, ('Could not scale: Found multiple clusters under %s' % name)
-            assert len(filtered) > 0, ('Could not scale: No namespace/cluster under %s was found' % name)
+            assert len(filtered) > 0, ('Could not scale: No namespace/cluster found under %s ' % name)
             name = filtered.pop()
-            # assert ocho_data[name] in [running['id'] for running in mara_data['apps']], ('Could not scale: Ochopod reported wrong app id for %s' % name)
-            # mara_data['apps'] = map(lambda running: _scale(running, name, num), mara_data['apps'])
             reply = put('http://%s/v2/apps/%s' % (master, ocho_data[name]), data=json.dumps(spec), headers=headers)
             code = reply.status_code
             assert code == 200 or code == 201, 'submission failed (HTTP %d)' % code
@@ -96,18 +88,4 @@ def scale(scalees={}, timeout=60.0):
 
             print e
             logger.warning(e)
-
-    # for running in mara_data['apps']:
-
-    #     try:
-
-    #         if ocho_data[running['id']] in scalees:
-
-    #             running['instances'] = num
-    #             map(lambda x: [] if x == ocho_data[running['id']], scalees)
-            
-
-    #     except Exception as e:
-
-    #         logger.warning(e)
     

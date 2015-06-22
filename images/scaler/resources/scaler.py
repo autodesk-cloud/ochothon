@@ -23,11 +23,12 @@ import sys
 import tempfile
 import time
 import shutil
+import pprint
 
 from ochopod.core.fsm import diagnostic, spin_lock
 from ochopod.core.utils import shell
 from subprocess import Popen, PIPE
-from toolset.poll import poll
+from toolset.poll import metrics, resources
 from toolset.scale import scale
 
 logger = logging.getLogger('ochopod')
@@ -47,10 +48,11 @@ if __name__ == '__main__':
         env['OCHOPOD_ZK'] = hints['zk']
 
         scale({'testy.scaler': {'instances' : 2}})
+        #pprint.pprint(resources())
 
         for i in range(10):
             time.sleep(10.0)
-            print poll()
+            #pprint.pprint(metrics())
 
 
     except Exception as failure:

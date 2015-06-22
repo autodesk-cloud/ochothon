@@ -19,11 +19,13 @@ import json
 import os
 import fnmatch
 from io import fire, run, ZK
+from requests import get
+from random import choice
 
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
 
-def poll(regex='*', timeout=60.0):
+def metrics(regex='*', timeout=60.0):
     """
         Tool for polling ochopod cluster for metrics.
 
@@ -41,3 +43,16 @@ def poll(regex='*', timeout=60.0):
     _, js = run(proxy, _query, timeout)
     
     return js
+
+def resources():
+    """
+        Tool for polling mesos masters for available and unavailable resources. Equivalent to a call
+        to mesos's /metrics/snapshot endpoint.  
+    """
+    assert 'MARATHON_MASTER' in os.environ, "$MARATHON_MASTER not specified (check scaler's pod.py)"
+    master = choice(os.environ['MARATHON_MASTER'].split(',')).split(':')[0]
+    reply = get('http://%s:5050/metrics/snapshot' % master)
+    code = reply.status_code
+    assert code == 200 or code == 201, 'mesos /metrics/snapshot request failed (HTTP %d)' % code
+    data = json.loads(reply.text)
+    return data

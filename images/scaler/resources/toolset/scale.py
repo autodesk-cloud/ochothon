@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import fnmatch
-
 from ochopod.core.utils import retry
 from random import choice
 from requests import get, put
@@ -30,8 +29,9 @@ def scale(scalees={}, timeout=60.0):
 
     #
     # - we need to pass the framework master IPs around (ugly)
+    # - Get marathon data
     #
-    assert 'MARATHON_MASTER' in os.environ, '$MARATHON_MASTER not specified... check scaler pod'
+    assert 'MARATHON_MASTER' in os.environ, "$MARATHON_MASTER not specified (check scaler's pod.py)"
     master = choice(os.environ['MARATHON_MASTER'].split(','))
     headers = \
         {
@@ -39,6 +39,11 @@ def scale(scalees={}, timeout=60.0):
             'accept': 'application/json'
         }
 
+    mara_data = json.loads(get('http://%s/v2/apps' % master).text)
+
+    #
+    # - Get ochoopd data
+    #
     def _query(zk):
         replies = fire(zk, '*', 'info')
         return len(replies), dict((key.rstrip(' .#%s' % index), hints['application']) for key, (index, hints, code) in replies.items() if code == 200)
@@ -46,9 +51,11 @@ def scale(scalees={}, timeout=60.0):
     proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
 
     _, ocho_data = run(proxy, _query, timeout)
-    
-    mara_data = json.loads(get('http://%s/v2/apps' % master).text)
 
+    #
+    # - Go through each provided namespace/cluster key and specification pair and PUT updated specs 
+    # - to the marathon endpoint. 
+    #
     for name, spec in scalees.iteritems():
 
         try:
@@ -72,7 +79,7 @@ def scale(scalees={}, timeout=60.0):
                 def _query(zk):
                     replies = fire(zk, name, 'info')
                     return [(hints['process'], seq) for seq, hints, _ in replies.values()
-                            if hints['application'] == application and hints['process'] in target]
+                            if hints['application'] == ocho_data[name] and hints['process'] in target]
 
                 js = run(proxy, _query)
                 assert len(js) == spec['instances'], 'not all pods running yet'
@@ -80,9 +87,7 @@ def scale(scalees={}, timeout=60.0):
 
             js = _spin()
             running = sum(1 for state, _ in js if state is not 'dead')
-            up = [seq for _, seq in js]
-            ok = spec['instances'] == running
-            logger.debug('Scaled: %d/%d pods are running for %s' % (running, spec['instances'], name))
+            logger.info('Scaled: %d/%d pods are running under %s' % (running, spec['instances'], name))
 
         except Exception as e:
 

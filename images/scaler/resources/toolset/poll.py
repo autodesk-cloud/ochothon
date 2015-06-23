@@ -18,6 +18,7 @@ import logging
 import json
 import os
 import fnmatch
+from ochopod.core.utils import merge
 from io import fire, run, ZK
 from requests import get
 from random import choice
@@ -49,11 +50,22 @@ def resources(regex='*'):
         Tool for polling mesos masters for available and unavailable resources. Equivalent to a call
         to mesos's /metrics/snapshot endpoint.  
     """
+
+    #
+    # - Use the same master for the mesos stats and metrics endpoints. 
+    #
     assert 'MARATHON_MASTER' in os.environ, "$MARATHON_MASTER not specified (check scaler's pod.py)"
     master = choice(os.environ['MARATHON_MASTER'].split(',')).split(':')[0]
     reply = get('http://%s:5050/metrics/snapshot' % master)
     code = reply.status_code
-    assert code == 200 or code == 201, 'mesos /metrics/snapshot request failed (HTTP %d)' % code
-    data = json.loads(reply.text)
+    assert code == 200 or code == 201, 'mesos /metrics/snapshot request failed (HTTP %d)... is Mesos >= 0.19.0?' % code
+    stats = get('http://%s:5050/stats.json' % master)
+    code = stats.status_code
+    assert code == 200 or code == 201, 'mesos /stats.json request failed (HTTP %d)... is Mesos >= 0.19.0?' % code
+
+    #
+    # - Load the json response, merge, then filter by provided regex.
+    #
+    data = merge(json.loads(reply.text), json.loads(stats.text))
     data = dict(filter(lambda x: fnmatch.fnmatch(x[0], regex), [[key, val] for key, val in data.iteritems()]))
     return data

@@ -33,6 +33,52 @@ from toolset.scale import scale
 
 logger = logging.getLogger('ochopod')
 
+def autoscale():
+
+    #
+    # - Incremental unit of resources.
+    #
+    unit = {
+        'mem': 2,
+        'cpus': 0.1,
+        'instances': 1,
+    }
+
+    #
+    # - Threshold of allocable resources. When computational resources are incremented
+    # - to the limit, increment application instances.
+    #
+    lim = {
+        'mem': 64,
+        'cpus': 1,
+        'instances': 5,
+    }
+
+def pulse(cluster='olivier.flask-sample'):
+
+    #
+    # - Pulse cluster up and down
+    #
+    i = 0
+
+    while True:
+
+        time.sleep(10.0)
+
+        if i % 4 == 0:
+
+            scale({cluster: {'instances' : 1, 'mem': 16, 'cpus' : 0.25}})
+
+        if i % 4 == 1 or i % 4 == 3:
+
+            scale({cluster: {'instances' : 2, 'mem': 32, 'cpus' : 0.5}})
+
+        elif i % 4 == 2:
+
+            scale({cluster: {'instances' : 3, 'mem': 64, 'cpus' : 0.75}})
+
+        i += 1
+
 if __name__ == '__main__':
 
     try:
@@ -47,13 +93,12 @@ if __name__ == '__main__':
         ochopod.enable_cli_log(debug=hints['debug'] == 'true')
         env['OCHOPOD_ZK'] = hints['zk']
 
-        scale({'testy.scaler': {'instances' : 2}})
-        #pprint.pprint(resources())
+        pulse()
 
-        for i in range(10):
-            time.sleep(10.0)
-            #pprint.pprint(metrics())
-
+        # for i in range(10):
+        #     time.sleep(10.0)
+        #     pprint.pprint(metrics())
+        #     pprint.pprint(resources('*system*'))
 
     except Exception as failure:
 

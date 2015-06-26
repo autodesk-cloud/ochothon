@@ -40,9 +40,20 @@ def scale(scalees={}, timeout=60.0):
         }
 
     #
+    # - Get ochopod data: dict of cluster/namespace to application id
+    #
+    def _query(zk):
+        replies = fire(zk, '*', 'info')
+        return len(replies), {key.rstrip(' .#%s' % index): hints['application'] for key, (index, hints, code) in replies.items() if code == 200}
+
+    proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
+
+    _, ocho_data = run(proxy, _query, timeout)
+
+    #
     # - Hold function to wait on Marathon while it is deploying a task
     #
-    @retry(timeout=2*timeout, pause=3)
+    @retry(timeout=timeout, pause=2)
     def _marathon_hold(name):
         reply = get('http://%s/v2/deployments' % master)
         code = reply.status_code
@@ -52,24 +63,10 @@ def scale(scalees={}, timeout=60.0):
         return js
 
     #
-    # - Wrapper to wait for pods to be in a mode specified in target
-    #
-    @retry(timeout=timeout, pause=3, default={})
-    def _spin(name, target):
-        def _query(zk):
-            replies = fire(zk, name, 'info')
-            return [(hints['process'], seq) for seq, hints, _ in replies.values()
-                    if hints['application'] == ocho_data[name] and hints['process'] in target]
-
-        js = run(proxy, _query)
-        assert len(js) == spec['instances'], 'not all pods running yet'
-        return js
-
-    #
     # - Wrapper to retry _specifically_ if a 409 conflict code occurs when PUTting to the app ID endpoint
     # - this occurs if Marathon is queried during deployment of a previous spec
     #
-    @retry(timeout=timeout, pause=3)
+    @retry(timeout=timeout, pause=2)
     def _put(app, spec):
         reply = put('http://%s/v2/apps/%s' % (master, app), data=json.dumps(spec), headers=headers)
         code = reply.status_code
@@ -77,15 +74,39 @@ def scale(scalees={}, timeout=60.0):
         return code
 
     #
-    # - Get ochoopd data: dict of cluster/namespace to application id
+    # - Wrapper to wait for pods to be in a mode specified in target
     #
-    def _query(zk):
-        replies = fire(zk, '*', 'info')
-        return len(replies), {key.rstrip(' .#%s' % index): hints['application'] for key, (index, hints, code) in replies.items() if code == 200}
+    @retry(timeout=timeout, pause=2, default={})
+    def _spin(name, target, num):
+        def _query(zk):
+            replies = fire(zk, name, 'info')
+            return [(hints['process'], seq) for seq, hints, _ in replies.values()
+                    if hints['application'] == ocho_data[name] and hints['process'] in target]
 
-    proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
+        js = run(proxy, _query)
+        assert len(js) == num, 'not all pods running yet'
+        return js
 
-    _, ocho_data = run(proxy, _query, timeout)
+    #
+    # - Wrapper to kill all (or part of) the pods using a POST /control/kill
+    # - wait for them to be dead
+    # - warning, /control/kill will block (hence the 5 seconds timeout)
+    #
+    @retry(timeout=timeout, pause=0)
+    def _kill(name, subset):
+        def _query(zk):
+            replies = fire(zk, name, 'control/kill', subset=subset, timeout=timeout)
+            return [(code, seq) for seq, _, code in replies.values()]
+
+        #
+        # - fire the request one or more pods
+        # - wait for every pod to report back a HTTP 410 (GONE)
+        # - this means the ochopod state-machine is now idling (e.g dead)
+        #
+        js = run(proxy, _query)
+        gone = sum(1 for code, _ in js if code == 410)
+        assert gone == len(js), 'at least one pod is still running'
+        return [seq for _, seq in js]
 
     #
     # - Check keys for overlaps and warn
@@ -121,116 +142,66 @@ def scale(scalees={}, timeout=60.0):
             curr = json.loads(mara_data.text)['app']
 
             #
-            # - Scale instance # if requested
-            # 
-            if 'instances' in spec:
+            # - Scale cpu, mem, or other resources; need to kill all pods (Marathon will run a set of new resized containers)
+            #
+            resources = ['cpus', 'mem']
 
-                #
-                # - Scale instance # down. Need to gracefully kill ochopods before telling Marathon to kill 
-                # - the corresponding tasks.
-                #
-                if curr['instances'] > spec['instances']:
+            if set(resources) & set(spec.keys()):
 
-                    assert spec['instances'] >= 0, "Could not scale: Invalid scaling instance number (%d) for %s" % (spec['instances'], name)
-                    delta = curr['instances'] - spec['instances']
-                    
-                    #
-                    # - Sort marathon task data by started time and slice off the older tasks (scale down newer instances)
-                    #
-                    victims = sorted(curr['tasks'], key=(lambda x: x['startedAt']))[delta:]
-                    
-                    def _query(zk):
-                        replies = fire(zk, name, 'info')
-                        return {hints['task']: index for key, (index, hints, code) in replies.items() if code == 200}
-                    
-                    js = run(proxy, _query, timeout)
-
-                    #
-                    # - get indeces of tasks to be killed
-                    #
-                    subset = [js[victim['id']] for victim in victims]
-
-                    #
-                    # - kill all (or part of) the pods using a POST /control/kill
-                    # - wait for them to be dead
-                    # - warning, /control/kill will block (hence the 5 seconds timeout)
-                    #
-                    @retry(timeout=timeout, pause=0)
-                    def _spin():
-                        def _query(zk):
-                            replies = fire(zk, name, 'control/kill', subset=subset, timeout=timeout)
-                            return [(code, seq) for seq, _, code in replies.values()]
-
-                        #
-                        # - fire the request one or more pods
-                        # - wait for every pod to report back a HTTP 410 (GONE)
-                        # - this means the ochopod state-machine is now idling (e.g dead)
-                        #
-                        js = run(proxy, _query)
-                        gone = sum(1 for code, _ in js if code == 410)
-                        assert gone == len(js), 'at least one pod is still running'
-                        return [seq for _, seq in js]
-
-                    down = _spin()
-                    assert down, 'Could not scale: The namespace/cluster %s is either invalid or empty' % name
-
-                    #
-                    # - Tell marathon to delete and scale each task
-                    #
-                    for victim in victims:
-                        reply = delete('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
-                        assert reply.status_code == 200 or code == 201, 'Could not scale: DELETE submission failed (HTTP %d) for %s' % (code, name)
-                        assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
-
-                #
-                # - Send the actual scale request; if scaling up, we didn't need to touch ochopod
-                # - if scaling down, Marathon still requires this request to be sent after the DELETEs above
-                #
-                code = _put(ocho_data[name], {'instances': spec['instances']})
-                assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
-                assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
+                down = _kill(name, None)
+                assert down, 'Could not scale: The namespace/cluster %s is either invalid or empty' % name
 
             #
-            # - Scale cpu, mem, or other resources; need to turn off pods temporarily while they are being scaled up/down 
+            # - Scale instance # down. Need to gracefully kill ochopods before telling Marathon to kill 
+            # - the corresponding tasks.
             #
-            allowed = ['cpus', 'mem']
+            elif 'instances' in spec and curr['instances'] > spec['instances']:
 
-            if set(allowed) & set(spec.keys()):
+                assert spec['instances'] >= 0, "Could not scale: Invalid scaling instance number (%d) for %s" % (spec['instances'], name)
+                delta = curr['instances'] - spec['instances']
 
                 #
-                # - Switch off all pods in cluster
+                # - Sort marathon task data by started time and slice off the older tasks (scale down newer instances)
                 #
+                victims = sorted(curr['tasks'], key=(lambda x: x['startedAt']))[spec['instances']:]
+                                                                                                                                                                                        
                 def _query(zk):
-                    replies = fire(zk, name, 'control/off')
-                    return [seq for _, (seq, _, code) in replies.items() if code == 200]
+                    replies = fire(zk, name, 'info')                                                                                                                                    
+                    return {hints['task']: index for key, (index, hints, code) in replies.items() if code == 200}                                                                       
+                
+                js = run(proxy, _query, timeout)
+                                                                                                                                                                                        
+                #
+                # - get indeces of tasks to be killed                                                                                                                                   
+                #
+                subset = [js[victim['id']] for victim in victims]
+            
+                #
+                # - Kill the subset of pods
+                #                                                                                                                                                                       
+                down = _kill(name, subset)
+                assert down, 'Could not scale: The namespace/cluster %s is either invalid or empty' % name
 
-                run(proxy, _query)
+                #
+                # - Tell marathon to delete and scale each task corresponding to the dead pods
+                #
+                for victim in victims:
+                    reply = delete('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
+                    assert reply.status_code == 200 or code == 201, 'Could not scale: DELETE submission failed (HTTP %d) for %s' % (code, name)                                         
+                    assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
 
-                #
-                # - Wait for all pods to be stopped
-                #
-                js = _spin(name, ['stopped'])
-
-                #
-                # - Again, send the scale request and wait until deployment is complete
-                #
-                code = _put(ocho_data[name], {key: val for key, val in spec.iteritems() if key in allowed})
-                assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
-                assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
-
-                #
-                # - Restart the pods
-                #
-                def _query(zk):
-                    replies = fire(zk, name, 'control/on')
-                    return [seq for _, (seq, _, code) in replies.items() if code == 200]
-
-                assert js == run(proxy, _query), 'one or more pods did not respond'
+            #
+            # - Send the actual scale request; if scaling up, we didn't need to touch ochopod
+            # - if scaling down, Marathon still requires this request to be sent after the DELETEs above
+            #
+            code = _put(ocho_data[name], spec)
+            assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
+            assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
 
             #
             # - wait for all the pods to be in the 'running' mode
             #
-            js = _spin(name, ['dead', 'running'])
+            js = _spin(name, ['running'], spec['instances'] if 'instances' in spec else curr['instances'])
             running = sum(1 for state, _ in js if state is not 'dead')
             logger.info('Scaled: %d/%d pods are running under %s' % (running, spec['instances'], name))
 

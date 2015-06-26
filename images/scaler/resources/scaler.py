@@ -69,7 +69,7 @@ def pulse(cluster='olivier.flask-sample'):
 
             scale({cluster: {'instances' : 1, 'mem': 16, 'cpus' : 0.25}})
 
-        if i % 4 == 1 or i % 4 == 3:
+        elif i % 4 == 1 or i % 4 == 3:
 
             scale({cluster: {'instances' : 2, 'mem': 32, 'cpus' : 0.5}})
 

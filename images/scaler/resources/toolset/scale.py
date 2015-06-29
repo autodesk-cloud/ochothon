@@ -12,14 +12,18 @@ logger = logging.getLogger('ochopod')
 
 def scale(scalees={}, timeout=60.0):
     """
-        Tool for scaling a set of scalee apps running under Ochopod and Marathon using a dict of specifications.
-        E.g., you may use:
-        scalees = {
-            '<namespace>.<cluster>': {
-                'instances': 5,
-                'mem': 32.0
+        Tool for scaling a set of scalee apps running under Ochopod and Marathon using a dict of specifications. Note that
+        this function is a _scale-to_, not a scale-by.
+
+        E.g., you may use::
+
+            scalees = {
+                '<namespace>.<cluster>': {
+                    'instances': 5,
+                    'mem': 32.0
+                }
             }
-        }
+            
         Scaling parameters include: 'instances', 'mem', 'cpus'.
 
         :param scalees: a dict mapping a cluster/namespace key to a secondary dict of specifications, according to which

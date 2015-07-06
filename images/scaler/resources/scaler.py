@@ -24,9 +24,10 @@ import tempfile
 import time
 import shutil
 
-from ochopod.core.fsm import diagnostic
+from ochopod.core.fsm import diagnostic, shutdown
 from toolset.poll import metrics, resources
 from toolset.scale import scale
+from toolset.io import ZK
 
 logger = logging.getLogger('ochopod')
 
@@ -80,7 +81,7 @@ def autoscale(clusters, period=300.0):
     }   
 
     lim = {
-        'instances': 6,
+        'instances': 4,
     }
 
     while True:
@@ -89,19 +90,38 @@ def autoscale(clusters, period=300.0):
         
         for cluster in clusters:
 
-            mets = metrics('%s*' % cluster)
-            print 'Metrics for %s: %s' %(cluster, mets)
-            stressed = sum(1 for key, item in mets.iteritems() if item['stressed'] == 'Very')
+            proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
 
-            if stressed > len(mets)/2.0 and len(mets) + unit['instances'] <= lim['instances']:
+            #
+            # - Retrieve metrics for the namespace/cluster, ignoring the index
+            #
+            try:   
 
-                    scale({cluster: {'instances': len(mets) + unit['instances']}})
-            
-            elif stressed < len(mets)/2.0 and len(mets) > unit['instances']:
-                    
-                    scale({cluster: {'instances': len(mets) - unit['instances']}})
+                mets = metrics(proxy, '%s' % cluster)
+                stressed = sum(1 for key, item in mets.iteritems() if item['stressed'] == 'Very')
 
-def pulse(clusters, period=60.0):
+                #
+                # - Scale up/down based on how stressed the cluster is and if resources
+                # - are within the limits
+                #
+                if stressed > len(mets)/2.0 and len(mets) + unit['instances'] <= lim['instances']:
+
+                        scale(proxy, scalees={cluster: {'instances': len(mets) + unit['instances']}}, timeout=20.0)
+                
+                elif stressed < len(mets)/2.0 and len(mets) > unit['instances']:
+                        
+                        scale(proxy, scalees={cluster: {'instances': len(mets) - unit['instances']}}, timeout=20.0)
+
+            except Exception as e:
+
+                logger.warning('Error on line %s' % (sys.exc_info()[-1].tb_lineno))
+                logger.warning('unexpected condition -> %s' % failure)
+
+            finally:
+
+                shutdown(proxy)
+
+def pulse(clusters, period=300.0):
     """
         Scales cluster up and down periodically
         :param clusters: list of strings matching particular namespace/clusters for scaling
@@ -119,19 +139,32 @@ def pulse(clusters, period=60.0):
 
         for cluster in clusters:
 
-            if i % 4 == 0:
+            proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
 
-                scale({cluster: {'instances': 1, 'mem': 16, 'cpus' : 0.25}})
+            try:
 
-            elif i % 4 == 1 or i % 4 == 3:
+                if i % 4 == 0:
 
-                scale({cluster: {'instances': 2, 'mem': 32, 'cpus' : 0.5}})
+                    scale(proxy, {cluster: {'instances': 1, 'mem': 16, 'cpus' : 0.25}}, timeout=20.0)
 
-            elif i % 4 == 2:
+                elif i % 4 == 1 or i % 4 == 3:
 
-                scale({cluster: {'instances': 3, 'mem': 64, 'cpus' : 0.75}})
+                    scale(proxy, {cluster: {'instances': 2, 'mem': 32, 'cpus' : 0.5}}, timeout=20.0)
 
-            i += 1
+                elif i % 4 == 2:
+
+                    scale(proxy, {cluster: {'instances': 3, 'mem': 64, 'cpus' : 0.75}}, timeout=20.0)
+
+                i += 1
+
+            except Exception as e:
+
+                logger.warning('Error on line %s' % (sys.exc_info()[-1].tb_lineno))
+                logger.warning('unexpected condition -> %s' % failure)
+
+            finally:
+
+                shutdown(proxy)
 
 if __name__ == '__main__':
 
@@ -159,6 +192,7 @@ if __name__ == '__main__':
 
     except Exception as failure:
 
+        logger.fatal('Error on line %s' % (sys.exc_info()[-1].tb_lineno))
         logger.fatal('unexpected condition -> %s' % failure)
 
     finally:

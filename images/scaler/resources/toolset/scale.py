@@ -3,6 +3,7 @@ import logging
 import os
 import fnmatch
 from ochopod.core.utils import retry
+from ochopod.core.fsm import shutdown
 from random import choice
 from requests import get, put, delete
 from io import fire, run, ZK
@@ -10,10 +11,10 @@ from io import fire, run, ZK
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
 
-def scale(scalees={}, timeout=60.0):
+def scale(proxy, scalees={}, timeout=60.0):
     """
         Tool for scaling a set of scalee apps running under Ochopod and Marathon using a dict of specifications. Note that
-        this function is a _scale-to_, not a scale-by.
+        this function is a scale-to, not a scale-by.
 
         E.g., you may use::
 
@@ -23,7 +24,7 @@ def scale(scalees={}, timeout=60.0):
                     'mem': 32.0
                 }
             }
-            
+
         Scaling parameters include: 'instances', 'mem', 'cpus'.
 
         :param scalees: a dict mapping a cluster/namespace key to a secondary dict of specifications, according to which
@@ -50,8 +51,6 @@ def scale(scalees={}, timeout=60.0):
         replies = fire(zk, '*', 'info')
         return len(replies), {key.rstrip(' .#%s' % index): hints['application'] for key, (index, hints, code) in replies.items() if code == 200}
 
-    proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
-
     _, ocho_data = run(proxy, _query, timeout)
 
     #
@@ -76,6 +75,16 @@ def scale(scalees={}, timeout=60.0):
         code = reply.status_code
         assert code != 409, 'Could not scale: PUT submission conflicted (HTTP %d) for %s' % (code, name)
         return code
+
+    #
+    # - Wrapper to retry deleting tasks on Marathon; this is important to prevent Ochopod from
+    # - desyncing with Marathon during scale down requests.
+    #
+    @retry(timeout=timeout, pause=2)
+    def _del(url):
+        reply = delete(url)
+        code = reply.status_code
+        assert code == 200 or code == 201, "Marathon task DELETE submission failed (HTTP %d)" % code
 
     #
     # - Wrapper to wait for pods to be in a mode specified in target
@@ -116,8 +125,11 @@ def scale(scalees={}, timeout=60.0):
     # - Check keys for overlaps and warn
     #
     for name in scalees.keys():
+
         filtered = fnmatch.filter(scalees.keys(), name).remove(name)
+
         if not filtered is None:
+
             logger.warning('Key %s in scalees dict may overlap with %s', name, filtered.join(', '))
 
     #
@@ -190,9 +202,12 @@ def scale(scalees={}, timeout=60.0):
                 # - Tell marathon to delete and scale each task corresponding to the dead pods
                 #
                 for victim in victims:
-                    reply = delete('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
-                    assert reply.status_code == 200 or code == 201, 'Could not scale: DELETE submission failed (HTTP %d) for %s' % (code, name)                                         
-                    assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
+
+                    _del('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
+
+                    if not _marathon_hold(name) == []:
+
+                        logger.warning('Marathon timed out during deployment for %s' % name)
 
             #
             # - Send the actual scale request; if scaling up, we didn't need to touch ochopod
@@ -200,7 +215,10 @@ def scale(scalees={}, timeout=60.0):
             #
             code = _put(ocho_data[name], spec)
             assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
-            assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
+
+            if not _marathon_hold(name) == []:
+
+                logger.warning('Marathon timed out during deployment for %s' % name)
 
             #
             # - wait for all the pods to be in the 'running' mode

@@ -26,7 +26,7 @@ from random import choice
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
 
-def metrics(regex='*', timeout=60.0):
+def metrics(proxy, regex='*', timeout=60.0):
     """
         Tool for polling ochopod cluster for metrics returned during sanity_checks.
 
@@ -35,11 +35,9 @@ def metrics(regex='*', timeout=60.0):
     """
 
     def _query(zk):
-        replies = fire(zk, '*', 'info')
-        return len(replies), dict((key, hints['metrics']) for key, (index, hints, code) in replies.items() if 
-            code == 200 and 'metrics' in hints and fnmatch.fnmatch(key, regex))
-
-    proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
+        replies = fire(zk, regex, 'info')
+        return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if 
+            code == 200 and 'metrics' in hints}
 
     _, js = run(proxy, _query, timeout)
     

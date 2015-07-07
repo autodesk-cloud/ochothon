@@ -1,0 +1,10 @@
+cluster:  scaler
+image:    lmok/pod-scaler
+
+
+verbatim:
+  cpus: 0.25
+  mem: 128
+  env:
+    MARATHON_MASTER:  "<YOUR MASTER IP #0>:8080,<YOUR MASTER IP #1>:8080..."
+    SCALEES: "<CLUSTER GLOB PATTERN #1>,<CLUSTER GLOB PATTERN #2>..."

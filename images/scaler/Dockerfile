@@ -3,7 +3,7 @@ FROM lmok/pod
 #
 # - add pip, pyyaml & redis
 #
-RUN apt-get update && apt-get -y install python-pip vim
+RUN apt-get update && apt-get -y install python-pip
 RUN pip install --no-use-wheel --upgrade distribute
 RUN pip install redis pyyaml
 

@@ -106,16 +106,15 @@ def autoscale(clusters, period=300.0):
                 #
                 if stressed > len(mets)/2.0 and len(mets) + unit['instances'] <= lim['instances']:
 
-                        scale(proxy, scalees={cluster: {'instances': len(mets) + unit['instances']}}, timeout=20.0)
+                        scale(proxy, scalees={cluster: {'instances': len(mets) + unit['instances']}})
                 
                 elif stressed < len(mets)/2.0 and len(mets) > unit['instances']:
                         
-                        scale(proxy, scalees={cluster: {'instances': len(mets) - unit['instances']}}, timeout=20.0)
+                        scale(proxy, scalees={cluster: {'instances': len(mets) - unit['instances']}})
 
             except Exception as e:
 
-                logger.warning('Error on line %s' % (sys.exc_info()[-1].tb_lineno))
-                logger.warning('unexpected condition -> %s' % failure)
+                raise e
 
             finally:
 
@@ -145,22 +144,21 @@ def pulse(clusters, period=300.0):
 
                 if i % 4 == 0:
 
-                    scale(proxy, {cluster: {'instances': 1, 'mem': 16, 'cpus' : 0.25}}, timeout=20.0)
+                    scale(proxy, {cluster: {'instances': 1, 'mem': 16, 'cpus' : 0.25}})
 
                 elif i % 4 == 1 or i % 4 == 3:
 
-                    scale(proxy, {cluster: {'instances': 2, 'mem': 32, 'cpus' : 0.5}}, timeout=20.0)
+                    scale(proxy, {cluster: {'instances': 2, 'mem': 32, 'cpus' : 0.5}})
 
                 elif i % 4 == 2:
 
-                    scale(proxy, {cluster: {'instances': 3, 'mem': 64, 'cpus' : 0.75}}, timeout=20.0)
+                    scale(proxy, {cluster: {'instances': 3, 'mem': 64, 'cpus' : 0.75}})
 
                 i += 1
 
             except Exception as e:
 
-                logger.warning('Error on line %s' % (sys.exc_info()[-1].tb_lineno))
-                logger.warning('unexpected condition -> %s' % failure)
+                raise e
 
             finally:
 

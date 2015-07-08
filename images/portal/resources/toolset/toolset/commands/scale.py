@@ -127,15 +127,25 @@ def go():
                 return js
 
             #
-            # - Wrapper to retry _specifically_ if a 409 conflict code occurs when PUTting to the app ID endpoint
+            # - Wrapper to retry specifically if a 409 conflict code occurs when PUTting to the app ID endpoint
             # - this occurs if Marathon is queried during deployment of a previous spec
             #
             @retry(timeout=timeout, pause=2)
             def _put(app, spec):
                 reply = put('http://%s/v2/apps/%s' % (master, app), data=json.dumps(spec), headers=headers)
                 code = reply.status_code
-                assert code != 409, 'Could not scale: PUT submission conflicted (HTTP %d) for %s' % (code, name)
+                assert code == 200 or code == 201, 'Could not scale: PUT submission conflicted (HTTP %d) for %s' % (code, name)
                 return code
+
+            #
+            # - Wrapper to retry deleting tasks on Marathon; this is important to prevent Ochopod from
+            # - desyncing with Marathon during scale down requests.
+            #
+            @retry(timeout=timeout, pause=2)
+            def _del(url):
+                reply = delete(url)
+                code = reply.status_code
+                assert code == 200 or code == 201, "Marathon task DELETE submission failed (HTTP %d)" % code
 
             #
             # - Wrapper to wait for pods to be in a mode specified in target
@@ -249,9 +259,12 @@ def go():
                         # - Tell marathon to delete and scale each task corresponding to the dead pods
                         #
                         for victim in victims:
-                            reply = delete('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
-                            assert reply.status_code == 200 or code == 201, 'Could not scale: DELETE submission failed (HTTP %d) for %s' % (code, name)                                         
-                            assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
+
+                            _del('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
+
+                            if not _marathon_hold(name) == []:
+
+                                logger.warning('Marathon timed out during deployment for %s' % name)
 
                     #
                     # - Send the actual scale request; if scaling up, we didn't need to touch ochopod
@@ -259,14 +272,24 @@ def go():
                     #
                     code = _put(ocho_data[name], spec)
                     assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
-                    assert _marathon_hold(name) == [], 'Marathon timed out during deployment for %s' % name
+
+                    if not _marathon_hold(name) == []:
+
+                        logger.warning('Marathon timed out during deployment for %s' % name)
 
                     #
                     # - wait for all the pods to be in the 'running' mode
                     #
                     js = _spin(name, ['running'], spec['instances'] if 'instances' in spec else curr['instances'])
                     running = sum(1 for state, _ in js if state is not 'dead')
-                    logger.info('Scaled: %d/%d pods are running under %s' % (running, spec['instances'], name))
+                    
+                    if running == spec['instances']:
+
+                        logger.info('Scaled: %d/%d pods are running under %s' % (running, spec['instances'], name))
+
+                    else:
+
+                        logger.warning('Could not scale: %d/%d pods are running under %s' % (running, spec['instances'], name))
 
                 except Exception as e:
 

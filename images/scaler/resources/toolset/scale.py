@@ -82,14 +82,14 @@ def scale(proxy, scalees={}, timeout=20.0):
         return js
 
     #
-    # - Wrapper to retry _specifically_ if a 409 conflict code occurs when PUTting to the app ID endpoint
+    # - Wrapper to retry specifically if a 409 conflict code occurs when PUTting to the app ID endpoint
     # - this occurs if Marathon is queried during deployment of a previous spec
     #
     @retry(timeout=timeout, pause=2)
     def _put(app, spec):
         reply = put('http://%s/v2/apps/%s' % (master, app), data=json.dumps(spec), headers=headers)
         code = reply.status_code
-        assert code != 409, 'Could not scale: PUT submission conflicted (HTTP %d) for %s' % (code, name)
+        assert code == 200 or code == 201, 'Could not scale: PUT submission conflicted (HTTP %d) for %s' % (code, name)
         return code
 
     #
@@ -241,7 +241,14 @@ def scale(proxy, scalees={}, timeout=20.0):
             #
             js = _spin(name, ['running'], spec['instances'] if 'instances' in spec else curr['instances'])
             running = sum(1 for state, _ in js if state is not 'dead')
-            logger.info('Scaled: %d/%d pods are running under %s' % (running, spec['instances'], name))
+            
+            if running == spec['instances']:
+
+                logger.info('Scaled: %d/%d pods are running under %s' % (running, spec['instances'], name))
+
+            else:
+
+                logger.warning('Could not scale: %d/%d pods are running under %s' % (running, spec['instances'], name))
 
         except Exception as e:
 

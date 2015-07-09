@@ -43,49 +43,29 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('-c', '--clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*).')
-            parser.add_argument('-m', '--mode', type=str, default='metrics', choices=['metrics', 'marathon'], help='Polling target may either be metrics or Marathon.')
-            parser.add_argument('-r', '--regex', type=str, default='*', help='Regex by which Marathon data keys are filtered.')
-            parser.add_argument('-t', '--timeout', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
+            parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*).')
+            parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
+            parser.add_argument('-t', '--timeout', action='store', dest='timeout', type=int, default=20, help='timeout in seconds (default 20)')
 
         def body(self, args, proxy):
 
-            if args.mode == 'metrics':
+            #
+            # - Grab user defined metrics returned in sanity_check()s
+            #
 
-                #
-                # - Grab user defined metrics returned in sanity_check()s
-                #
-                for token in args.clusters:
+            outs = {}
 
-                    def _query(zk):
-                        replies = fire(zk, token, 'info')
-                        return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if 
-                            code == 200 and 'metrics' in hints}
+            for token in args.clusters:
 
-                    _, js = run(proxy, _query, args.timeout)
-                    
-                    logger.info(pprint.pformat(js))
+                def _query(zk):
+                    replies = fire(zk, token, 'info')
+                    return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if 
+                        code == 200 and 'metrics' in hints}
 
-            elif args.mode == 'marathon':
+                _, js = run(proxy, _query, args.timeout)
+                
+                outs.update(js)
 
-                #
-                # - Use the same master for the mesos stats and metrics endpoints. 
-                #
-                assert 'MARATHON_MASTER' in os.environ, "$MARATHON_MASTER not specified (check portal pod)"
-                master = choice(os.environ['MARATHON_MASTER'].split(',')).split(':')[0]
-                reply = get('http://%s:5050/metrics/snapshot' % master)
-                code = reply.status_code
-                assert code == 200 or code == 201, 'mesos /metrics/snapshot request failed (HTTP %d)... is Mesos >= 0.19.0?' % code
-                stats = get('http://%s:5050/stats.json' % master)
-                code = stats.status_code
-                assert code == 200 or code == 201, 'mesos /stats.json request failed (HTTP %d)... is Mesos >= 0.19.0?' % code
-
-                #
-                # - Load the json response, merge, then filter by provided regex.
-                #
-                data = merge(json.loads(reply.text), json.loads(stats.text))
-                data = dict(filter(lambda x: fnmatch.fnmatch(x[0], args.regex), [[key, val] for key, val in data.iteritems()]))
-                logger.info(pprint.pformat(data))
-
+            logger.info(json.dumps(outs) if args.json else '-----Ochopod Metrics-----:\n%s' % pprint.pformat(outs))
 
     return _Tool()

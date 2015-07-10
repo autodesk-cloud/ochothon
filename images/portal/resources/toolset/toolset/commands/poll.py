@@ -17,17 +17,12 @@
 import logging
 import json
 import os
-import fnmatch
-import pprint
-from ochopod.core.utils import merge
 from toolset.io import fire, run, ZK
-from requests import get
 from random import choice
 from toolset.tool import Template
 
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
-
 
 def go():
 
@@ -35,8 +30,7 @@ def go():
 
         help = \
             """
-                Tool for polling ochopod cluster for metrics returned during sanity_checks, or for polling mesos masters for 
-                available and unavailable resources. Equivalent to a call to mesos's /metrics/snapshot endpoint.  
+                Tool for polling ochopod cluster for metrics returned during sanity_checks.
             """
 
         tag = 'poll'
@@ -52,7 +46,6 @@ def go():
             #
             # - Grab user defined metrics returned in sanity_check()s
             #
-
             outs = {}
 
             for token in args.clusters:
@@ -62,10 +55,24 @@ def go():
                     return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if 
                         code == 200 and 'metrics' in hints}
 
-                _, js = run(proxy, _query, args.timeout)
+                total, js = run(proxy, _query, args.timeout)
                 
                 outs.update(js)
 
-            logger.info(json.dumps(outs) if args.json else '-----Ochopod Metrics-----:\n%s' % pprint.pformat(outs))
+                #
+                # - Prettify if not asked for a json string
+                #
+                if not args.json:
+
+                    pct = (len(js) * 100) / total
+                    logger.info('<%s> -> User-defined metrics ->\n' % token)
+                    rows = [['pod', '|', 'metrics'], ['', '|', '']] + [[key, '|', json.dumps(val)] for key, val in js.iteritems()]
+                    widths = [max(map(len, col)) for col in zip(*rows)]
+                    for row in rows:
+                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+            
+            if args.json:
+
+                logger.info(json.dumps(outs))
 
     return _Tool()

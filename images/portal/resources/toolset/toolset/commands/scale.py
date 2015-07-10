@@ -101,7 +101,7 @@ def go():
                 #
                 filtered = fnmatch.filter(args.clusters, cluster).remove(cluster)
 
-                if not filtered is None:
+                if not filtered is None and not args.json:
 
                     logger.warning('Cluster %s may overlap with %s', cluster, filtered.join(', '))
 
@@ -112,15 +112,8 @@ def go():
                 for name in set(fnmatch.filter(ocho_data.keys(), cluster)):
 
                     try:
-                        
-                        assert args.instances, 'Please provide a target number of instances for scaling (-i flag).'
 
-                        #
-                        # - Get pods corresponding to namespace/cluster...
-                        #
-                        filtered = set(fnmatch.filter(ocho_data.keys(), name))
-                        assert len(filtered) > 0, 'Could not scale: No clusters found under %s ' % name
-                        name = filtered.pop()
+                        assert args.instances, 'Missing target number of instances for scaling (-i flag).'
 
                         #
                         # - Get the specs for the current app that matches the requested namespace/cluster
@@ -167,7 +160,7 @@ def go():
                                     return [(code, seq) for seq, _, code in replies.values()]
 
                                 #
-                                # - fire the request one or more pods
+                                # - fire the request to one or more pods
                                 # - wait for every pod to report back a HTTP 410 (GONE)
                                 # - this means the ochopod state-machine is now idling (e.g dead)
                                 #
@@ -180,7 +173,7 @@ def go():
                             # - Kill the subset of pods
                             #                                                                                                                                                                       
                             down = _kill(name, subset)
-                            assert down, 'Could not scale: The pouds under %s did not die' % name
+                            assert down, 'Could not scale: The pods under %s did not die' % name
 
                             #
                             # - Wrapper to retry deleting tasks on Marathon; this is important to prevent Ochopod from
@@ -199,7 +192,7 @@ def go():
 
                                 _del('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
 
-                                if not _marathon_hold(name) == []:
+                                if not _marathon_hold(name) == [] and not args.json:
 
                                     logger.warning('Marathon timed out during deployment for %s' % name)
 
@@ -221,7 +214,7 @@ def go():
                         code = _put(ocho_data[name], {'instances': args.instances})
                         assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
 
-                        if not _marathon_hold(name) == []:
+                        if not _marathon_hold(name) == [] and not args.json:
 
                             logger.warning('Marathon timed out during deployment for %s' % name)
                         
@@ -245,6 +238,9 @@ def go():
                         js = _spin(name, ['running'], args.instances)
                         running = sum(1 for state, _ in js if state is not 'dead')
                         
+                        #
+                        # - output
+                        #
                         if args.json:
 
                             outs[name] = {'running': running, 'requested': args.instances}

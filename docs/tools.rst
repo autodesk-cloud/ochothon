@@ -146,7 +146,11 @@ The **kill** command will gracefully phase containers out (e.g they will be aske
 go into idling). Any underlying Marathon_ application whose containers are all dead will the be automatically
 deleted.
 
-You can inspect your clusters at runtime using for instance the **grep**, **info** or **log** commands.
+The **scale** command will scale the number of pod instances in your cluster. This is equivalent to scaling instance
+counts on Marathon_ but with Ochopod_ being instructed to prepare itself beforehand.
+
+You can inspect your clusters at runtime using for instance the **grep**, **info** or **log** commands. The **poll** 
+command will report user-defined metrics.
 
 CI integration
 **************

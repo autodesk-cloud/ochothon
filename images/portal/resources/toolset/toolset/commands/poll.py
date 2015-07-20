@@ -30,7 +30,7 @@ def go():
 
         help = \
             """
-                Tool for polling ochopod cluster for metrics returned during sanity_checks.
+                Tool for polling the metrics returned during sanity checks.
             """
 
         tag = 'poll'
@@ -39,12 +39,12 @@ def go():
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*).')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
-            parser.add_argument('-t', '--timeout', action='store', dest='timeout', type=int, default=20, help='timeout in seconds (default 20)')
 
         def body(self, args, proxy):
 
             #
-            # - Grab user defined metrics returned in sanity_check()s
+            # - grab the user metrics returned in sanity_check()
+            # - those are returned via a POST /info
             #
             outs = {}
 
@@ -52,20 +52,19 @@ def go():
 
                 def _query(zk):
                     replies = fire(zk, token, 'info')
-                    return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if 
-                        code == 200 and 'metrics' in hints}
+                    return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if code == 200 and 'metrics' in hints}
 
-                total, js = run(proxy, _query, args.timeout)
+                total, js = run(proxy, _query)
                 
                 outs.update(js)
 
                 #
-                # - Prettify if not asked for a json string
+                # - prettify if not asked for a json string
                 #
-                if not args.json:
+                if js and not args.json:
 
                     pct = (len(js) * 100) / total
-                    logger.info('<%s> -> User-defined metrics ->\n' % token)
+                    logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
                     rows = [['pod', '|', 'metrics'], ['', '|', '']] + [[key, '|', json.dumps(val)] for key, val in js.iteritems()]
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:

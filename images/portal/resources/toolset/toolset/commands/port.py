@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 import logging
-
+import json
 from toolset.io import fire, run
 from toolset.tool import Template
 
@@ -38,9 +38,11 @@ def go():
 
             parser.add_argument('port', type=int, nargs=1, help='TCP port to lookup')
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
         def body(self, args, proxy):
 
+            outs = {}
             port = str(args.port[0])
             for cluster in args.clusters:
 
@@ -49,16 +51,23 @@ def go():
                     return len(replies), [[key, '|', hints['ip'], '|', hints['public'], '|', str(hints['ports'][port])] for key, (_, hints, code) in sorted(replies.items()) if code == 200 and port in hints['ports']]
 
                 total, js = run(proxy, _query)
-                if js:
+
+                outs.update({item[0]: {'ip': item[2], 'public': item[4], 'ports': item[6]} for item in js})
+
+                if js and not args.json:
 
                     #
                     # - justify & format the whole thing in a nice set of columns
                     #
                     pct = (len(js) * 100) / total
                     logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (cluster, pct, len(js)))
-                    rows = [['pod', '|', 'pod IP', '|', 'public IP', '|', 'TCP'], ['', '|', '', '|', '']] + js
+                    rows = [['pod', '|', 'pod IP', '|', 'public IP', '|', 'TCP'], ['', '|', '', '|', '', '|', '']] + js
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:
                         logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+
+            if args.json:
+                
+                logger.info(json.dumps(outs))
 
     return _Tool()

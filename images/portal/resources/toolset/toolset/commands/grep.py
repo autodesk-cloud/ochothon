@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 import logging
-
+import json
 from toolset.io import fire, run
 from toolset.tool import Template
 
@@ -37,8 +37,11 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
         def body(self, args, proxy):
+
+            outs = {}
 
             for token in args.clusters:
 
@@ -48,7 +51,10 @@ def go():
                                           for key, (_, hints, code) in sorted(replies.items()) if code == 200]
 
                 total, js = run(proxy, _query)
-                if js:
+
+                outs.update({item[0]: {'ip': item[2], 'node': item[4], 'process': item[6], 'state': item[8]} for item in js})
+
+                if js and not args.json:
 
                     #
                     # - justify & format the whole thing in a nice set of columns
@@ -60,5 +66,8 @@ def go():
                     for row in rows:
                         logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
 
+            if args.json:
+                
+                logger.info(json.dumps(outs))
 
     return _Tool()

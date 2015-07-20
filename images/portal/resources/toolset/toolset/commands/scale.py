@@ -50,7 +50,6 @@ def go():
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
             parser.add_argument('-t', '--timeout', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
 
-
         def body(self, args, proxy):
 
             #

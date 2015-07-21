@@ -67,8 +67,21 @@ def cli():
 
         def _exec(self, snippet):
             pid = Popen(snippet, shell=True, stdout=PIPE, stderr=PIPE)
-            pid.wait()
-            return pid.returncode, pid.stdout.read()
+
+            #
+            # - taken from ochopod's subprocess piping; avoids issues with buffering
+            #
+            outs = []
+
+            while True:
+
+                line = pid.stdout.readline().rstrip('\n')
+                code = pid.poll()
+                if line == '' and code is not None:
+                    break
+                outs += [line]
+
+            return pid.returncode, '\n'.join(outs)
 
     try:
         #

@@ -65,7 +65,7 @@ def go():
 
                     pct = (len(js) * 100) / total
                     logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
-                    rows = [['pod', '|', 'metrics'], ['', '|', '']] + [[key, '|', json.dumps(val)] for key, val in js.iteritems()]
+                    rows = [['pod', '|', 'metrics'], ['', '|', '']] + sorted([[key, '|', json.dumps(val)] for key, val in js.iteritems()])
                     widths = [max(map(len, col)) for col in zip(*rows)]
                     for row in rows:
                         logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))

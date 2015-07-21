@@ -66,13 +66,12 @@ def cli():
                 print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')
 
         def _exec(self, snippet):
-            pid = Popen(snippet, shell=True, stdout=PIPE, stderr=PIPE)
 
             #
             # - taken from ochopod's subprocess piping; avoids issues with buffering
             #
             outs = []
-
+            pid = Popen(snippet, shell=True, stdout=PIPE, stderr=PIPE)
             while True:
 
                 line = pid.stdout.readline().rstrip('\n')

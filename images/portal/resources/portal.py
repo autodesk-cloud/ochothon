@@ -70,17 +70,13 @@ if __name__ == '__main__':
                 ts = time.time()
                 line = request.headers['X-Shell']
                 logger.debug('http -> shell request "%s"' % line)
-                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=PIPE, env=env, cwd=tmp)
 
                 #
-                # - wait for completion
+                # - pipe the process stdout
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
                 outs = []
-
-                #
-                # - taken from ochopod's subprocess piping; avoids issues with buffering
-                #
+                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=PIPE, env=env, cwd=tmp)
                 while True:
 
                     line = pid.stdout.readline().rstrip('\n')

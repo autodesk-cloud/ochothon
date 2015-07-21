@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+import time
 
 from ochopod.bindings.ec2.marathon import Pod
 from ochopod.models.piped import Actor as Piped
@@ -28,6 +29,27 @@ if __name__ == '__main__':
 
         cwd = '/opt/portal'
         
+        check_every = 60.0
+
+        pid = None
+
+        since = 0.0
+
+        def sanity_check(self, pid):
+
+            #
+            # - simply use the provided process ID to start counting time
+            # - this is a cheap way to measure the sub-process up-time
+            #
+            now = time.time()
+            if pid != self.pid:
+                self.pid = pid
+                self.since = now
+
+            lapse = (now - self.since) / 3600.0
+
+            return {'uptime': '%.2f hours (pid %s)' % (lapse, pid)}
+
         def configure(self, _):
 
             return 'python portal.py', {}

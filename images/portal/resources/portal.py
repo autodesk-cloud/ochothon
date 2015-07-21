@@ -76,9 +76,21 @@ if __name__ == '__main__':
                 # - wait for completion
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
-                pid.wait()
+                outs = []
+
+                #
+                # - taken from ochopod's subprocess piping; avoids issues with buffering
+                #
+                while True:
+
+                    line = pid.stdout.readline().rstrip('\n')
+                    code = pid.poll()
+                    if line == '' and code is not None:
+                        break
+                    outs += [line]
+
                 ms = 1000 * (time.time() - ts)
-                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': pid.stdout.read()})
+                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(outs)})
 
             except Exception as failure:
 
@@ -112,9 +124,21 @@ if __name__ == '__main__':
                 # - wait for completion
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
-                pid.wait()
+                outs = []
+
+                #
+                # - taken from ochopod's subprocess piping; avoids issues with buffering
+                #
+                while True:
+
+                    line = pid.stdout.readline().rstrip('\n')
+                    code = pid.poll()
+                    if line == '' and code is not None:
+                        break
+                    outs += [line]
+
                 ms = 1000 * (time.time() - ts)
-                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': pid.stdout.read()})
+                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(outs)})
 
             except Exception as failure:
 

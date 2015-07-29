@@ -28,7 +28,7 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, cluster, subset):
+    def __init__(self, proxy, cluster, indices):
         super(_Automation, self).__init__()
 
         self.cluster = cluster
@@ -38,27 +38,37 @@ class _Automation(Thread):
                 'reset': []
             }
         self.proxy = proxy
-        self.subset = subset
+        self.indices = indices
 
         self.start()
 
     def run(self):
         try:
 
+            #
+            # - first turn the pod off
+            #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'control/off', subset=self.subset)
+                replies = fire(zk, self.cluster, 'control/off', subset=self.indices)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
             js = run(self.proxy, _query)
 
+            #
+            # - reset it
+            # - this will force a reconnection to zookeeper
+            #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'reset', subset=self.subset)
+                replies = fire(zk, self.cluster, 'reset', subset=self.indices)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
             assert js == run(self.proxy, _query), 'one or more pods did not respond'
 
+            #
+            # - then turn the pod back on
+            #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'control/on', subset=self.subset)
+                replies = fire(zk, self.cluster, 'control/on', subset=self.indices)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
             assert js == run(self.proxy, _query), 'one or more pods did not respond'
@@ -100,18 +110,18 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, proxy):
 
-            assert args.force or args.subset, 'you must specify --force if -i is not set'
+            assert args.force or args.indices, 'you must specify --force if -i is not set'
 
             #
             # - run the workflow proper (one thread per container definition)
             #
-            threads = {cluster: _Automation(proxy, cluster, args.subset) for cluster in args.clusters}
+            threads = {cluster: _Automation(proxy, cluster, args.indices) for cluster in args.clusters}
 
             #
             # - wait for all our threads to join

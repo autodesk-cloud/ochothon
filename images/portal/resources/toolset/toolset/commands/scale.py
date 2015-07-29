@@ -17,46 +17,44 @@
 import json
 import logging
 import os
-import fnmatch
+
 from ochopod.core.fsm import diagnostic
 from ochopod.core.utils import retry
 from random import choice
-from requests import get, put, delete
-from toolset.io import fire, run, ZK
+from requests import post, put
+from threading import Thread
+from toolset.io import fire, run
 from toolset.tool import Template
 
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
 
-def go():
 
-    class _Tool(Template):
+class _Automation(Thread):
 
-        help = \
-            """
-                Tool for scaling a set of scalee apps running under Ochopod and Marathon. Note that this function is a scale-to, not a scale-by.
+    def __init__(self, proxy, cluster, factor, fifo, group, timeout):
+        super(_Automation, self).__init__()
 
-                Usage example::
-                    > scale *this-cluster* *that-cluster* -i 3
+        self.cluster = cluster
+        self.factor = factor
+        self.fifo = fifo
+        self.group = group
+        self.out = \
+            {
+                'ok': False
+            }
+        self.proxy = proxy
+        self.timeout = max(timeout, 5)
 
-            """
+        self.start()
 
-        tag = 'scale'
-
-        def customize(self, parser):
-
-            parser.add_argument('clusters', nargs='*', type=str, help='1+ clusters (can be a glob pattern, e.g foo*, but must match only one cluster to avoid clashing).')           
-            parser.add_argument('-i', '--instances', type=int, help='Number of instances to scale to for all clusters provided.')
-            parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
-            parser.add_argument('-t', '--timeout', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
-
-        def body(self, args, proxy):
+    def run(self):
+        try:
 
             #
             # - we need to pass the framework master IPs around (ugly)
-            # - Get marathon data
             #
-            assert 'MARATHON_MASTER' in os.environ, "$MARATHON_MASTER not specified (check portal's pod)"
+            assert 'MARATHON_MASTER' in os.environ, '$MARATHON_MASTER not specified (check your portal pod)'
             master = choice(os.environ['MARATHON_MASTER'].split(','))
             headers = \
                 {
@@ -65,205 +63,193 @@ def go():
                 }
 
             #
-            # - Get ochopod data: dict of cluster/namespace to application id
+            # - first peek and see what pods we have
             #
             def _query(zk):
-                replies = fire(zk, '*', 'info')
-                return len(replies), {key.rstrip(' .#%s' % index): hints['application'] for key, (index, hints, code) in replies.items() if code == 200}
-
-            _, ocho_data = run(proxy, _query, args.timeout)
+                replies = fire(zk, self.cluster, 'info')
+                return [(seq, hints['application'], hints['task']) for (seq, hints, _) in replies.values()]
 
             #
-            # - Hold function to wait on Marathon while it is deploying a task
+            # - remap a bit differently and get an ordered list of task identifiers
+            # - we'll use that to kill the newest pods
             #
-            @retry(timeout=args.timeout, pause=2)
-            def _marathon_hold(name):
-                reply = get('http://%s/v2/deployments' % master)
+            js = run(self.proxy, _query)
+            total = len(js)
+            if self.group is not None:
+
+                #
+                # - if -g was specify apply the scaling to the underlying marathon application containing that pod
+                # - be careful to update the task list and total # of pods
+                #
+                keys = {seq: key for (seq, key, _) in js}
+                assert self.group in keys, '#%d is not a valid pod index' % self.group
+                app = keys[self.group]
+                tasks = [(seq, task) for (seq, key, task) in sorted(js, key=(lambda _: _[0])) if key == app]
+                total = sum(1 for (_, key, _) in js if key == app)
+
+            else:
+
+                #
+                # - check and make sure all our pods map to one single marathon application
+                #
+                keys = set([key for (_, key, _) in js])
+                assert len(keys) == 1, '%s maps to more than one application, you must specify -g' % self.cluster
+                tasks = [(seq, task) for (seq, _, task) in sorted(js, key=(lambda _: _[0]))]
+                app = keys.pop()
+
+            #
+            # - infer the target # of pods based on the user-defined factor
+            #
+            operator = self.factor[0]
+            assert operator in ['@', 'x'], 'invalid operator'
+            n = float(self.factor[1:])
+            target = n if operator == '@' else total * n
+
+            #
+            # - clip the target # of pods down to 1
+            #
+            target = max(1, int(target))
+            self.out['delta'] = target - total
+            if target > total:
+
+                #
+                # - scale the application capacity up
+                #
+                js = \
+                    {
+                        'instances': target
+                    }
+
+                url = 'http://%s/v2/apps/%s' % (master, app)
+                reply = put(url, data=json.dumps(js), headers=headers)
                 code = reply.status_code
-                js = json.loads(reply.text)
-                assert code == 200 or code == 201, "Marathon deployment GET failed (HTTP %d)" % code
-                assert js == [], "Marathon didn't finish deploying yet for %s" % name
-                return js
-
-            #
-            # - For json output
-            #
-            outs = {}
-
-            #
-            # - Go through all provided glob patterns
-            #
-            for cluster in args.clusters:
+                logger.debug('-> %s (HTTP %d)' % (url, code))
+                assert code == 200 or code == 201, 'update failed (HTTP %d)' % code
 
                 #
-                # - Check keys for overlaps and warn
+                # - wait for all our new pods to be there
                 #
-                filtered = fnmatch.filter(args.clusters, cluster).remove(cluster)
+                @retry(timeout=self.timeout, pause=3, default={})
+                def _spin():
+                    def _query(zk):
+                        replies = fire(zk, self.cluster, 'info')
+                        return [seq for seq, _, _ in replies.values()]
 
-                if not filtered is None and not args.json:
+                    js = run(self.proxy, _query)
+                    assert len(js) == target, 'not all pods running yet'
+                    return js
 
-                    logger.warning('Cluster %s may overlap with %s', cluster, filtered.join(', '))
+                _spin()
+
+            elif target < total:
 
                 #
-                # - Go through each namespace/cluster key and specification pair and send request
-                # - to the Marathon endpoint. 
+                # - if the fifo switch is on make sure to pick the oldest pods for deletion
                 #
-                for name in set(fnmatch.filter(ocho_data.keys(), cluster)):
+                tasks = tasks[:total - target] if self.fifo else tasks[target:]
 
-                    try:
+                #
+                # - kill all (or part of) the pods using a POST /control/kill
+                # - wait for them to be dead
+                #
+                @retry(timeout=self.timeout, pause=0)
+                def _spin():
+                    def _query(zk):
+                        indices = [seq for (seq, _) in tasks]
+                        replies = fire(zk, self.cluster, 'control/kill', subset=indices, timeout=self.timeout)
+                        return [(code, seq) for seq, _, code in replies.values()]
 
-                        assert args.instances, 'Missing target number of instances for scaling (-i flag).'
+                    #
+                    # - fire the request one or more pods
+                    # - wait for every pod to report back a HTTP 410 (GONE)
+                    # - this means the ochopod state-machine is now idling (e.g dead)
+                    #
+                    js = run(self.proxy, _query)
+                    gone = sum(1 for code, _ in js if code == 410)
+                    assert gone == len(js), 'at least one pod is still running'
+                    return
 
-                        #
-                        # - Get the specs for the current app that matches the requested namespace/cluster
-                        #    
-                        mara_data = get('http://%s/v2/apps/%s' % (master, ocho_data[name]))
-                        code = mara_data.status_code
-                        assert code == 200 or code == 201, "Could not scale: Marathon couldn't find the correct app id for %s (HTTP %d)" % (name, code)
-                        curr = json.loads(mara_data.text)['app']
+                _spin()
 
-                        #
-                        # - Scale instance # down. Need to gracefully kill ochopods before telling Marathon to kill 
-                        # - the corresponding tasks.
-                        #
-                        if curr['instances'] > args.instances:
+                #
+                # - delete all the underlying tasks at once using POST v2/tasks/delete
+                #
+                js = \
+                    {
+                        'ids': [task for (_, task) in tasks]
+                    }
 
-                            assert args.instances >= 0, "Could not scale: Invalid scaling instance number (%d) for %s" % (args.instances, name)
-                            delta = curr['instances'] - args.instances
+                url = 'http://%s/v2/tasks/delete?scale=true' % master
+                reply = post(url, data=json.dumps(js), headers=headers)
+                code = reply.status_code
+                logger.debug('-> %s (HTTP %d)' % (url, code))
+                assert code == 200 or code == 201, 'delete failed (HTTP %d)' % code
 
-                            #
-                            # - Sort marathon task data by started time and slice off the older tasks (scale down newer instances)
-                            #
-                            victims = sorted(curr['tasks'], key=(lambda x: x['startedAt']))[args.instances:]
-                                                                                                                                                                                                    
-                            def _query(zk):
-                                replies = fire(zk, name, 'info')                                                                                                                                    
-                                return {hints['task']: index for key, (index, hints, code) in replies.items() if code == 200}                                                                       
-                            
-                            js = run(proxy, _query, args.timeout)
-                                                                                                                                                                                                    
-                            #
-                            # - get indeces of tasks to be killed                                                                                                                                   
-                            #
-                            subset = [js[victim['id']] for victim in victims]
-                            
-                            #
-                            # - Wrapper to kill all (or part of) the pods using a POST /control/kill
-                            # - wait for them to be dead
-                            # - warning, /control/kill will block (hence the 5 seconds timeout)
-                            #
-                            @retry(timeout=args.timeout, pause=0)
-                            def _kill(name, subset):
-                                def _query(zk):
-                                    replies = fire(zk, name, 'control/kill', subset=subset, timeout=args.timeout)
-                                    return [(code, seq) for seq, _, code in replies.values()]
+            self.out['ok'] = True
 
-                                #
-                                # - fire the request to one or more pods
-                                # - wait for every pod to report back a HTTP 410 (GONE)
-                                # - this means the ochopod state-machine is now idling (e.g dead)
-                                #
-                                js = run(proxy, _query)
-                                gone = sum(1 for code, _ in js if code == 410)
-                                assert gone == len(js), 'at least one pod is still running'
-                                return [seq for _, seq in js]
+        except AssertionError as failure:
 
-                            #   
-                            # - Kill the subset of pods
-                            #                                                                                                                                                                       
-                            down = _kill(name, subset)
-                            assert down, 'Could not scale: The pods under %s did not die' % name
+            logger.debug('%s : failed to scale -> %s' % (self.cluster, failure))
 
-                            #
-                            # - Wrapper to retry deleting tasks on Marathon; this is important to prevent Ochopod from
-                            # - desyncing with Marathon during scale down requests.
-                            #
-                            @retry(timeout=args.timeout, pause=2)
-                            def _del(url):
-                                reply = delete(url)
-                                code = reply.status_code
-                                assert code == 200 or code == 201, "Marathon task DELETE submission failed (HTTP %d)" % code
+        except Exception as failure:
 
-                            #
-                            # - Tell marathon to delete and scale each task corresponding to the dead pods
-                            #
-                            for victim in victims:
+            logger.debug('%s : failed to scale -> %s' % (self.cluster, diagnostic(failure)))
 
-                                _del('http://%s/v2/apps/%s/tasks/%s?scale=true' % (master, ocho_data[name], victim['id']))
+    def join(self, timeout=None):
 
-                                if not _marathon_hold(name) == [] and not args.json:
+        Thread.join(self)
+        return self.out
 
-                                    logger.warning('Marathon timed out during deployment for %s' % name)
 
-                        #
-                        # - Wrapper to retry specifically if a 409 conflict code occurs when PUTting to the app ID endpoint
-                        # - this occurs if Marathon is queried during deployment of a previous spec
-                        #
-                        @retry(timeout=args.timeout, pause=2)
-                        def _put(app, spec):
-                            reply = put('http://%s/v2/apps/%s' % (master, app), data=json.dumps(spec), headers=headers)
-                            code = reply.status_code
-                            assert code == 200 or code == 201, 'Could not scale: PUT submission conflicted (HTTP %d) for %s' % (code, name)
-                            return code
+def go():
 
-                        #
-                        # - Send the actual scale request; if scaling up, we didn't need to touch ochopod
-                        # - if scaling down, Marathon still requires this request to be sent after the DELETEs above
-                        #
-                        code = _put(ocho_data[name], {'instances': args.instances})
-                        assert code == 200 or code == 201, 'Could not scale: PUT submission failed (HTTP %d) for %s' % (code, name)
+    class _Tool(Template):
 
-                        if not _marathon_hold(name) == [] and not args.json:
+        help = \
+            '''
+                Scales the specified clusters up or down. Scaling can be done using a target number of pods (-f @5 for
+                instance), or by using a multiplier (e.g -f x0.75). By default the scaled clusters must map each to
+                one single marathon application otherwise -g must be specified to differentiate them (in this case -g
+                specifies a pod index we'll use to pick the right application).
 
-                            logger.warning('Marathon timed out during deployment for %s' % name)
-                        
-                        #
-                        # - Wrapper to wait for pods to be in a mode specified in target
-                        #
-                        @retry(timeout=args.timeout, pause=2, default={})
-                        def _spin(name, target, num):
-                            def _query(zk):
-                                replies = fire(zk, name, 'info')
-                                return [(hints['process'], seq) for seq, hints, _ in replies.values()
-                                        if hints['application'] == ocho_data[name] and hints['process'] in target]
+                When scaling down (and phasing pods out) the --fifo can be used to kill the oldest pods first. The
+                default is to kill the most recent pods (LIFO).
 
-                            js = run(proxy, _query)
-                            assert len(js) == num, 'not all pods running yet'
-                            return js
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
+            '''
 
-                        #
-                        # - wait for all the pods to be in the 'running' mode
-                        #
-                        js = _spin(name, ['running'], args.instances)
-                        running = sum(1 for state, _ in js if state is not 'dead')
-                        
-                        #
-                        # - output
-                        #
-                        if args.json:
+        tag = 'scale'
 
-                            outs[name] = {'running': running, 'requested': args.instances}
-                        
-                        elif running == args.instances:
+        def customize(self, parser):
 
-                            logger.info('Scaled: %d/%d pods are running under %s' % (running, args.instances, name))
+            parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('-f', action='store', dest='factor', default='+1', help='scaling factor, e.g x1.75')
+            parser.add_argument('-g', action='store', type=int, dest='group', help='pod index')
+            parser.add_argument('-j', action='store_true', dest='json', help='json output')
+            parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
+            parser.add_argument('--fifo', action='store_true', dest='fifo', help='fifo mode (scale down only)')
 
-                        else:
+        def body(self, args, proxy):
 
-                            logger.warning('Could not scale: %d/%d pods are running under %s' % (running, args.instances, name))
+            #
+            # - run the workflow proper (one thread per cluster)
+            #
+            threads = {cluster: _Automation(
+                proxy,
+                cluster,
+                args.factor,
+                args.fifo,
+                args.group,
+                args.timeout) for cluster in args.clusters}
 
-                    except Exception as e:
-                        
-                        if args.json:
-                            
-                            outs[name] = {'failed': diagnostic(e)}
-
-                        else:
-
-                            logger.warning('Could not scale %s for %s: failure %s' % (name, cluster, diagnostic(e)))
-                        
-            if args.json:
-
-                logger.info(json.dumps(outs))
+            #
+            # - wait for all our threads to join
+            #
+            n = len(threads)
+            outcome = {key: thread.join() for key, thread in threads.items()}
+            delta = sum(js['delta'] for _, js in outcome.items())
+            pct = (100 * sum(1 for _, js in outcome.items() if js['ok'])) / n if n else 0
+            logger.info(json.dumps(outcome) if args.json else '%d%% success (%+d pods)' % (pct, delta))
+            return 0 if pct == 100 else 1
 
     return _Tool()

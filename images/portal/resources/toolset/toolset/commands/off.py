@@ -40,17 +40,17 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, proxy):
 
-            assert args.force or args.subset, 'you must specify --force if -i is not set'
+            assert args.force or args.indices, 'you must specify --force if -i is not set'
 
             for token in args.clusters:
 
                 def _query(zk):
-                    replies = fire(zk, token, 'control/off', subset=args.subset)
+                    replies = fire(zk, token, 'control/off', subset=args.indices)
                     return len(replies), [pod for pod, (_, _, code) in replies.items() if code == 200]
 
                 total, js = run(proxy, _query)

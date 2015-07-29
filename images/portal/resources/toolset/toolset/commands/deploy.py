@@ -36,16 +36,14 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, template, overrides, namespace, pods, cycle, suffix, timeout, strict):
+    def __init__(self, proxy, template, overrides, namespace, pods, suffix, timeout, strict):
         super(_Automation, self).__init__()
 
-        self.cycle = cycle
         self.namespace = namespace
         self.out = \
             {
                 'ok': False,
-                'up': [],
-                'down': []
+                'up': []
             }
         self.overrides = overrides
         self.pods = pods
@@ -134,20 +132,6 @@ class _Automation(Thread):
 
                 missing = _nullcheck(cfg['settings'], ['pod'])
                 assert not missing, '%d setting(s) missing ->\n\t - %s' % (len(missing), '\n\t - '.join(missing))
-
-                #
-                # - lookup our all the pods for that identifier
-                # - get their sequence indices (we'll use it to phase out them out)
-                # - if the target # of pods we want is not specified default to 1 unless we are cycling
-                # - set it to the current # of pods in that case
-                #
-                def _query(zk):
-                    replies = fire(zk, qualified, 'info')
-                    return [(hints['process'], seq) for _, (seq, hints, code) in replies.items() if code == 200]
-
-                prev = run(self.proxy, _query)
-                if self.cycle and not self.pods:
-                    self.pods = sum(1 if state != 'dead' else 0 for state, _ in prev)
 
                 #
                 # - if we still have no target default it to 1 single pod
@@ -273,18 +257,6 @@ class _Automation(Thread):
                     logger.debug('-> %s (HTTP %d)' % (url, code))
                     assert code == 200 or code == 204, 'application deletion failed (HTTP %d)' % code
 
-                elif self.cycle:
-
-                    #
-                    # - phase out & clean-up the pods that were previously running
-                    # - simply exec() the kill tool for this
-                    #
-                    time.sleep(self.cycle)
-                    down = [seq for _, seq in prev]
-                    code, _ = shell('toolset kill %s -i %s -d' % (qualified, ' '.join(['%d' % seq for seq in down])))
-                    assert code == 0, 'failed to phase out %d pods' % len(prev)
-                    self.out['down'] = down
-
         except AssertionError as failure:
 
             logger.debug('%s : failed to deploy -> %s' % (self.template, failure))
@@ -316,10 +288,8 @@ def go():
                 switch will ensure we wait for all containers to be fully configured.
 
                 If no container ended up being deployed the underlying marathon application will automatically get
-                deleted. If -c is specified any pod previously running for the specified cluster(s) will be gracefully
-                phased out once the new pods are up and after the specified duration in seconds. It is possible to add
-                a suffix to the cluster identifier defined in the yaml configuration by using the -s option (typically
-                to run the same functionality in different contexts).
+                deleted.It is possible to add a suffix to the cluster identifier defined in the yaml configuration
+                by using the -s option (typically to run the same functionality in different contexts).
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
 
@@ -331,7 +301,6 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('containers', type=str, nargs='+', help='1+ YAML definitions (e.g marathon.yml)')
-            parser.add_argument('-c', action='store', dest='cycle', type=int, help='delay in seconds after which the current pods will be phased out')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-n', action='store', dest='namespace', type=str, default='marathon', help='namespace')
             parser.add_argument('-o', action='store', dest='overrides', type=str, nargs='+', help='overrides YAML file(s)')
@@ -375,7 +344,6 @@ def go():
                 overrides,
                 args.namespace,
                 args.pods,
-                args.cycle,
                 args.suffix,
                 args.timeout,
                 args.strict) for template in args.containers}
@@ -387,8 +355,7 @@ def go():
             outcome = {key: thread.join() for key, thread in threads.items()}
             pct = (100 * sum(1 for _, js in outcome.items() if js['ok'])) / n if n else 0
             up = sum(len(js['up']) for _, js in outcome.items())
-            down = sum(len(js['down']) for _, js in outcome.items())
-            logger.info(json.dumps(outcome) if args.json else '%d%% success (+%d/-%d)' % (pct, up, down))
+            logger.info(json.dumps(outcome) if args.json else '%d%% success (+%d pods)' % (pct, up))
             return 0 if pct == 100 else 1
 
     return _Tool()

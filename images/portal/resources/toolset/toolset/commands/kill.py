@@ -21,7 +21,7 @@ import os
 from ochopod.core.fsm import diagnostic
 from ochopod.core.utils import retry
 from random import choice
-from requests import get, delete
+from requests import get, delete, post
 from threading import Thread
 from toolset.io import fire, run
 from toolset.tool import Template
@@ -32,17 +32,17 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, cluster, subset, timeout):
+    def __init__(self, proxy, cluster, indices, timeout):
         super(_Automation, self).__init__()
 
         self.cluster = cluster
         self.out = \
             {
                 'ok': False,
-                'down': 0
+                'down': []
             }
         self.proxy = proxy
-        self.subset = subset
+        self.indices = indices
         self.timeout = max(timeout, 5)
 
         self.start()
@@ -69,7 +69,7 @@ class _Automation(Thread):
             @retry(timeout=self.timeout, pause=0)
             def _spin():
                 def _query(zk):
-                    replies = fire(zk, self.cluster, 'control/kill', subset=self.subset, timeout=self.timeout)
+                    replies = fire(zk, self.cluster, 'control/kill', subset=self.indices, timeout=self.timeout)
                     return [(code, seq) for seq, _, code in replies.values()]
 
                 #
@@ -85,44 +85,63 @@ class _Automation(Thread):
             down = _spin()
             self.out['down'] = down
             assert down, 'the cluster is either invalid or empty'
-            logger.debug('%s : %d pods are dead -> %s' % (self.cluster, len(down), ', '.join(['#%d' % seq for seq in down])))
+            logger.debug('%s : %d dead pods -> %s' % (self.cluster, len(down), ', '.join(['#%d' % seq for seq in down])))
 
             #
-            # - now look our all our pods up and focus on the dead ones
-            # - this may include pods that were already phased out earlier
-            # - we want to know if we can now nuke the underlying marathon application(s)
+            # - now peek and see what pods we have
+            # - we want to know what the underlying marathon application & task are
             #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'info')
-                return [hints['application'] for key, (_, hints, _) in replies.items() if hints['process'] == 'dead']
+                replies = fire(zk, self.cluster, 'info', subset=self.indices)
+                return [(hints['application'], hints['task']) for _, hints, _ in replies.values()]
 
             js = run(self.proxy, _query)
-            rollup = {key: 0 for key in set(js)}
-            for key in js:
-                rollup[key] += 1
+            rollup = {key: [] for key in set([key for key, _ in js])}
+            for app, task in js:
+                rollup[app] += [task]
 
-            for application, total in rollup.items():
+            #
+            # - go through each application
+            # - query the it and check how many tasks it currently has
+            # - the goal is to check if we should nuke the whole application or not
+            #
+            for app, tasks in rollup.items():
 
-                #
-                # - query the marathon application and check how many tasks it currently has
-                #
-                url = 'http://%s/v2/apps/%s/tasks' % (master, application)
+                url = 'http://%s/v2/apps/%s/tasks' % (master, app)
                 reply = get(url, headers=headers)
                 code = reply.status_code
                 logger.debug('%s : -> %s (HTTP %d)' % (self.cluster, url, code))
                 assert code == 200, 'task lookup failed (HTTP %d)' % code
                 js = reply.json()
-                if len(js['tasks']) == total:
+
+                if len(tasks) == len(js['tasks']):
 
                     #
                     # - all the containers running for that application were reported as dead
-                    # - issue a DELETE /v2/apps to nuke it altogether
+                    # - issue a DELETE /v2/apps to nuke the whole thing
                     #
-                    url = 'http://%s/v2/apps/%s' % (master, application)
+                    url = 'http://%s/v2/apps/%s' % (master, app)
                     reply = delete(url, headers=headers)
                     code = reply.status_code
                     logger.debug('%s : -> %s (HTTP %d)' % (self.cluster, url, code))
                     assert code == 200 or code == 204, 'application deletion failed (HTTP %d)' % code
+
+                else:
+
+                    #
+                    # - we killed a subset of that application's pods
+                    # - cherry pick the underlying tasks and delete them at once using POST v2/tasks/delete
+                    #
+                    js = \
+                        {
+                            'ids': tasks
+                        }
+
+                    url = 'http://%s/v2/tasks/delete?scale=true' % master
+                    reply = post(url, data=json.dumps(js), headers=headers)
+                    code = reply.status_code
+                    logger.debug('-> %s (HTTP %d)' % (url, code))
+                    assert code == 200 or code == 201, 'delete failed (HTTP %d)' % code
 
             self.out['ok'] = True
 
@@ -160,14 +179,14 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
-            parser.add_argument('-i', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('-i', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, proxy):
 
-            assert args.force or args.subset, 'you must specify --force if -i is not set'
+            assert args.force or args.indices, 'you must specify --force if -i is not set'
 
             #
             # - run the workflow proper (one thread per container definition)
@@ -175,7 +194,7 @@ def go():
             threads = {cluster: _Automation(
                 proxy,
                 cluster,
-                args.subset,
+                args.indices,
                 args.timeout) for cluster in args.clusters}
 
             #
@@ -185,7 +204,7 @@ def go():
             outcome = {key: thread.join() for key, thread in threads.items()}
             dead = sum(len(js['down']) for _, js in outcome.items())
             pct = (100 * sum(1 for _, js in outcome.items() if js['ok'])) / n if n else 0
-            logger.info(json.dumps(outcome) if args.json else '%d%% success (%d dead pods)' % (pct, dead))
+            logger.info(json.dumps(outcome) if args.json else '%d%% success (-%d pods)' % (pct, dead))
             return 0 if pct == 100 else 1
 
     return _Tool()

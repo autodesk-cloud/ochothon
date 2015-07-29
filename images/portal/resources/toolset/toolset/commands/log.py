@@ -39,14 +39,14 @@ def go():
 
             parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-l', action='store_true', dest='long', help='display the entire log')
-            parser.add_argument('-i', '--indices', action='store', dest='subset', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
 
         def body(self, args, proxy):
 
             for token in args.clusters:
 
                 def _query(zk):
-                    replies = fire(zk, token, 'log', subset=args.subset)
+                    replies = fire(zk, token, 'log', subset=args.indices)
                     return len(replies), {key: log for key, (_, log, code) in replies.items() if code == 200}
 
                 total, js = run(proxy, _query)

@@ -16,9 +16,7 @@
 #
 import logging
 import json
-import os
 from toolset.io import fire, run, ZK
-from random import choice
 from toolset.tool import Template
 
 #: Our ochopod logger.

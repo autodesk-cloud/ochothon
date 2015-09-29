@@ -17,7 +17,7 @@
 import logging
 import time
 
-from ochopod.bindings.ec2.marathon import Pod
+from ochopod.bindings.generic.marathon import Pod
 from ochopod.models.piped import Actor as Piped
 
 logger = logging.getLogger('ochopod')

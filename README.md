@@ -18,7 +18,18 @@ Please note we **only support bindings to run over AWS** at this point.
 
 ### Getting started
 
-#### Step 1 : install DCOS
+#### Step 1 : install the CLI
+
+Simply install our CLI interface. You will then get access to a **ocho** command-line script. For instance:
+
+```
+$ pip install git+https://github.com/autodesk-cloud/ochothon.git
+$ ocho
+usage: ocho [-h] command [extra arguments [extra arguments ...]]
+ocho: error: too few arguments
+```
+
+#### Step 2 : install DCOS
 
 You know how to do it. Just peruse their [**documentation**](http://beta-docs.mesosphere.com/install/awscluster/). The
 script will gently deploy for you the whole stack inside of a VPC (plus you get access to their very cool dashboard).
@@ -26,7 +37,7 @@ Make sure to specify at least one public slave to run our proxy.
 
 Once the stack is up look where your Marathon masters are running from and note their private IPs.
 
-#### Step 2 : deploy our proxy
+#### Step 3 : deploy our proxy
 
 We use a simple proxy mechanism to interact with our containers. Edit the provided ```dcos.json``` configuration and
 specify the **internal** IP for each master (just the IP, not a URL) including port 8080. For instance:
@@ -60,25 +71,16 @@ If you happen to kill the portal application do not panic and just re-create a n
 
 You are now all setup and can remotely issue commands to the proxy. Are you afraid of using CURL or feel lazy ? No
 problemo, use our little self-contained CLI ! You just need to have [**Python 2.7+**](https://www.python.org/)
-installed locally:
-
-```
-$ chmod +x cli.py
-$ ./cli.py <PROXY IP>
-welcome to the ocho CLI ! (CTRL-C to exit)
->
-```
-
-You can set the $OCHOPOD_PROXY environment variable to avoid passing the proxy IP on the command line. Any command
-typed in that interactive session will be relayed to your proxy ! If you prefer to CURL directory you can do so as
-well.
+installed locally. You can set the $OCHOPOD_PROXY environment variable to avoid passing the proxy IP on the command
+line. Any command typed in that interactive session will be relayed to your proxy ! If you prefer to CURL directory
+you can do so as well.
 
 The proxy supports a whole set of tools doing various things. Just type ```help``` in the CLI to get a list of what is
 there. Each tool also has supports a ```---help``` switch that will print out all the details you need to know. As
 an example:
 
 ```
-$ ./cli.py
+$ ocho cli
 welcome to the ocho CLI ! (CTRL-C to exit)
 > help
 available commands -> deploy, grep, info, kill, log, ls, off, on
@@ -101,7 +103,7 @@ optional arguments:
 You are all set. Use the _grep_ tool and you should see the portal itself. For instance:
 
 ```
-$ ./cli.py
+$ ocho cli
 welcome to the ocho CLI ! (CTRL-C to exit)
 > grep
 <*> -> 100% replies (1 pods total) ->

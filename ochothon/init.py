@@ -16,14 +16,18 @@
 # limitations under the License.
 #
 """
-Utility that will git clone one of our template repositories locally.
+Utility that will clone one of our templates locally. Once the repository has been setup you can edit
+integration.yml to define your CI strategy. By default it is set to build and push a Docker image. The
+templates can be found under https://github.com/opaugam/ochothon-template-*. If you don't specify anything
+the "default" template will be used. This image is just laid out as a minimalistic ochopod container. You
+can also use specific templates by specifying an identifier. For instance:
 
 For instance:
 
  $ ocho init flask
- > enter a short identifier (e.g web or database): my-endpoint
- > enter the docker repo/image: project/endpoint
- template ready in ochopod-marathon-my-endpoint
+ > enter a short identifier (e.g web or database): my-stuff
+ > enter the docker repo/image: project/my-stuff
+ template ready in ochopod-marathon-my-stuff
 
  """
 
@@ -38,11 +42,13 @@ from os import path
 from sys import exit
 
 def init(args):
-    """
-    """
+
     tmp = tempfile.mkdtemp()
     try:
 
+        #
+        # - git clone the template repo from the opaugam org.
+        #
         kind = args[0] if args else 'default'
         repo = 'ochothon-template-%s' % kind
         code, _ = shell('git clone https://github.com/opaugam/%s' % repo, cwd=tmp)

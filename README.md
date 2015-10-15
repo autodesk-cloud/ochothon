@@ -98,6 +98,18 @@ optional arguments:
   -d, --debug  debug mode
 ```
 
+### Template images
+
+You can easily get started with your own image by running ```ocho init```. This utility will clone the specified
+repository locally and prep it with everything you need. For instance:
+
+```
+$ ocho init
+> enter a short identifier to describe what the image does (e.g web or database): my-app
+> enter the docker repo/image to push to upon a CI build (e.g foo/bar): opaugam/ochopod-my-image
+template ready in ochopod-marathon-my-app/
+```
+
 ### Final check
 
 You are all set. Use the _grep_ tool and you should see the portal itself. For instance:

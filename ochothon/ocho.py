@@ -29,7 +29,7 @@ def ocho():
     commands = ['cli', 'init']
     parser = ArgumentParser(description='ochothon CLI %s' % ochothon.__version__)
     parser.add_argument('command', type=str, help='supported commands: %s' % ','.join(commands))
-    parser.add_argument('extra', metavar='extra arguments', type=str, nargs='*', help='zero or more arguments')
+    parser.add_argument('extra', metavar='extra arguments', type=str, nargs='*', help='0+ arguments (type "help" for detailed information)')
     args = parser.parse_args()
     if args.command not in commands:
         print 'invalid command (type ocho -h for details)'
@@ -41,7 +41,10 @@ def ocho():
     do = args.command
     imported = __import__('ochothon.%s' % do)
     module = getattr(imported, do)
-    module.__getattribute__(do)(args.extra)
+    if args.extra == ['help']:
+        print module.__doc__
+    else:
+        module.__getattribute__(do)(args.extra)
 
 if __name__ == "__main__":
     ocho()

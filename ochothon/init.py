@@ -15,6 +15,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""
+Utility that will git clone one of our template repositories locally.
+
+For instance:
+
+ $ ocho init flask
+ > enter a short identifier (e.g web or database): my-endpoint
+ > enter the docker repo/image: project/endpoint
+ template ready in ochopod-marathon-my-endpoint
+
+ """
+
 import fnmatch
 import os
 import tempfile
@@ -36,8 +48,17 @@ def init(args):
         code, _ = shell('git clone https://github.com/opaugam/%s' % repo, cwd=tmp)
         assert code == 0, 'unable to find template "%s" in git' % kind
 
-        tag = raw_input('> enter a short identifier to describe what the image does: ')
-        image = raw_input('> enter the docker repo/image to push to upon a CI build: ')
+        #
+        # - ask a few questions
+        #
+        tag = raw_input('> enter a short identifier (e.g web or database): ')
+        image = raw_input('> enter the docker repo/image: ')
+
+        #
+        # - strip non-alpha characters from the tag
+        #
+        bad = ''.join(c for c in map(chr, range(256)) if not c.isalnum() and c not in ['-'])
+        tag = tag.translate(None, bad)
 
         mappings = \
             {
@@ -54,6 +75,10 @@ def init(args):
                 '*.conf'
             ]
 
+        #
+        # - walk through the cloned repo
+        # - render all templates
+        #
         l = len(tmp) + 1
         env = Environment(loader=FileSystemLoader(tmp))
         for root, sub, items in os.walk(tmp):
@@ -68,8 +93,11 @@ def init(args):
                                 f.write(rendered)
                             break
 
+        #
+        # - copy the whole thing to where the script is invoked from
+        #
         local = 'ochopod-marathon-%s' % tag
-        shell('mkdir %s && cp -r %s/%s/* %s' % (local, tmp, repo, local))
+        code, _ = shell('mkdir %s && cp -r %s/%s/* %s' % (local, tmp, repo, local))
         print 'template ready in %s/' % local
 
     except KeyboardInterrupt:

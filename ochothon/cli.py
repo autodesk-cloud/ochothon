@@ -15,26 +15,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""
+Minimalistic self-contained wrapper performing the curl calls to the ochopod proxy. The input is
+turned into a POST -H X-Shell:<> to the proxy at port TCP 9000. Any token from that input that
+matches a local file (wherever the script is running from) will force an upload for the said file.
+This mechanism is used for instance to upload the container definition YAML files when deploying a
+new cluster.
+
+The proxy ip or hostname is either passed as the first command-line argument or vi a $OCHOPOD_PROXY.
+Type "help" to get the list of supported commands.
+
+For instance:
+
+ $ ocho cli my-cluster
+ welcome to the ocho CLI ! (CTRL-C or exit to get out)
+ my-cluster > help
+ available commands -> bump, deploy, grep, kill, log, ls, nodes, off, on, ping, poll, port
+
+You can also run a one-shot command. For instance if you just need to list all your pods:
+
+ $ ocho cli my-cluster ls
+ 3 pods, 100% replies ->
+
+ cluster                                        |  ok   |  status
+                                                |       |
+ marathon.portal                                |  1/1  |
+ test.web-server                                |  2/2  |
+"""
+
 import cmd
 import json
 import os
 
 from common import shell
 from os.path import basename, expanduser, isfile
-from subprocess import Popen, PIPE
 from sys import exit
 
 
 def cli(args):
-    """
-        Minimalistic self-contained wrapper performing the curl calls to the ochopod proxy. The input
-        is turned into a POST -H X-Shell:<> to the proxy at port TCP 9000. Any token from that input that
-        matches a local file (wherever the script is running from) will force an upload for the said file.
-        This mechanism is used for instance to upload the container definition YAML files when deploying a
-        new cluster.
 
-        The proxy IP is either passed as the first command-line argument or vi a $OCHOPOD_PROXY.
-    """
     class Shell(cmd.Cmd):
 
         def __init__(self, ip):

@@ -46,34 +46,25 @@ class _Automation(Thread):
         try:
 
             #
-            # - first turn the pod off
+            # - first turn off the pods
+            # - keep track of the indices
             #
             def _query(zk):
                 replies = fire(zk, self.cluster, 'control/off', subset=self.indices)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
-            js = run(self.proxy, _query)
+            pods = run(self.proxy, _query)
 
             #
-            # - reset it
-            # - this will force a reconnection to zookeeper
-            #
-            def _query(zk):
-                replies = fire(zk, self.cluster, 'reset', subset=self.indices)
-                return [seq for _, (seq, _, code) in replies.items() if code == 200]
-
-            assert js == run(self.proxy, _query), 'one or more pods did not respond'
-
-            #
-            # - then turn the pod back on
+            # - then turn those pod back on
             #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'control/on', subset=self.indices)
+                replies = fire(zk, self.cluster, 'control/on', subset=pods)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
-            assert js == run(self.proxy, _query), 'one or more pods did not respond'
+            assert pods == run(self.proxy, _query), 'one or more pods failed to switch back on'
 
-            self.out['reset'] = js
+            self.out['reset'] = pods
             self.out['ok'] = True
 
         except AssertionError as failure:

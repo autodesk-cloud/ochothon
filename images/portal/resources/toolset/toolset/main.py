@@ -93,10 +93,6 @@ def go():
 
             logger.info('unknown command (%s)' % _usage())
 
-        elif len(matched) > 1:
-
-            logger.info('more than one command were matched (%s)' % _usage())
-
         else:
 
             #

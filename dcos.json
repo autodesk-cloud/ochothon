@@ -19,7 +19,7 @@
         {
             "forcePullImage":               true,
             "network":                      "BRIDGE",
-            "image":                        "paugamo/marathon-ec2-portal",
+            "image":                        "autodeskcloud/ochothon:1.0.0",
             "portMappings":
                 [
                     {

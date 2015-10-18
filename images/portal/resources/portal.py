@@ -75,18 +75,18 @@ if __name__ == '__main__':
                 # - pipe the process stdout
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
-                outs = []
-                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=PIPE, env=env, cwd=tmp)
+                out = []
+                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=None, env=env, cwd=tmp)
                 while True:
 
                     line = pid.stdout.readline().rstrip('\n')
                     code = pid.poll()
                     if line == '' and code is not None:
                         break
-                    outs += [line]
+                    out += [line]
 
                 ms = 1000 * (time.time() - ts)
-                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(outs)})
+                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(out)})
 
             except Exception as failure:
 
@@ -114,13 +114,13 @@ if __name__ == '__main__':
                 ts = time.time()
                 line = request.args.get('line', 0, type=str)
                 logger.debug('http -> shell request "%s"' % line)
-                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=PIPE, env=env, cwd=tmp)
+                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=None, env=env, cwd=tmp)
 
                 #
                 # - wait for completion
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
-                outs = []
+                out = []
 
                 #
                 # - taken from ochopod's subprocess piping; avoids issues with buffering
@@ -131,10 +131,10 @@ if __name__ == '__main__':
                     code = pid.poll()
                     if line == '' and code is not None:
                         break
-                    outs += [line]
+                    out += [line]
 
                 ms = 1000 * (time.time() - ts)
-                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(outs)})
+                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(out)})
 
             except Exception as failure:
 

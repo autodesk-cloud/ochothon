@@ -72,7 +72,7 @@ def lookup(zk, regex, subset=None):
     return pods
 
 
-def fire(zk, cluster, command, subset=None, timeout=10.0, js=None, headers=None):
+def fire(zk, cluster, command, subset=None, timeout=10.0, js=None, headers=None, files=None):
 
     class _Post(Thread):
         """
@@ -98,7 +98,7 @@ def fire(zk, cluster, command, subset=None, timeout=10.0, js=None, headers=None)
                 port = self.hints['port']
                 assert port in self.hints['ports'], 'ochopod control port not exposed @ %s (user error ?)' % self.key
                 url = 'http://%s:%d/%s' % (self.hints['ip'], self.hints['ports'][port], command)
-                reply = requests.post(url, timeout=timeout, data=js, headers=headers)
+                reply = requests.post(url, timeout=timeout, data=js, headers=headers, files=files)
                 self.body = reply.json()
                 self.code = reply.status_code
                 ms = 1000 * (time.time() - ts)

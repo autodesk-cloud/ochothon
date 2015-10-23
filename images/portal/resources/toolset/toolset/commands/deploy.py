@@ -36,7 +36,7 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, template, overrides, namespace, pods, suffix, timeout, strict):
+    def __init__(self, proxy, template, overrides, namespace, pods, release, suffix, timeout, strict):
         super(_Automation, self).__init__()
 
         self.namespace = namespace
@@ -48,9 +48,10 @@ class _Automation(Thread):
         self.overrides = overrides
         self.pods = pods
         self.proxy = proxy
-        self.template = template
+        self.release = release
         self.suffix = suffix
         self.strict = strict
+        self.template = template
         self.timeout = max(timeout, 5)
 
         self.start()
@@ -160,6 +161,14 @@ class _Automation(Thread):
                         assert 0, 'invalid port syntax ("%s")' % token
 
                 #
+                # - craft the docker image specifier
+                # - if -r is used make sure to add (or override) the :<label> suffix
+                #
+                image = cfg['image']
+                tokens = image.split(':')
+                image = '%s:%s' % (tokens[0], self.release) if self.release else image
+
+                #
                 # - note the marathon-ec2 ochopod bindings will set the application hint automatically
                 #   via environment variable (e.g no need to specify it here)
                 # - make sure to mount /etc/mesos and /opt/mesosphere to account for various mesos installs
@@ -183,7 +192,7 @@ class _Automation(Thread):
                                 'docker':
                                     {
                                         'forcePullImage': True,
-                                        'image': cfg['image'],
+                                        'image': image,
                                         'network': 'BRIDGE',
                                         'portMappings': ports
                                     },
@@ -305,6 +314,7 @@ def go():
             parser.add_argument('-n', action='store', dest='namespace', type=str, default='marathon', help='namespace')
             parser.add_argument('-o', action='store', dest='overrides', type=str, nargs='+', help='overrides YAML file(s)')
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
+            parser.add_argument('-r', action='store', dest='release', type=str, help='docker image release tag')
             parser.add_argument('-s', action='store', dest='suffix', type=str, help='optional cluster suffix')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--strict', action='store_true', dest='strict', help='waits until all pods are running')
@@ -344,6 +354,7 @@ def go():
                 overrides,
                 args.namespace,
                 args.pods,
+                args.release,
                 args.suffix,
                 args.timeout,
                 args.strict) for template in args.containers}

@@ -28,24 +28,25 @@ def go():
 
         help = \
             """
-                Tool for polling the metrics returned during sanity checks.
+                Polls and returns the metrics gathered during sanity checks.
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             """
 
         tag = 'poll'
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*).')
+            parser.add_argument('clusters', type=str, nargs='*', default='*', help='clusters (can be a glob pattern, e.g foo*).')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             #
             # - grab the user metrics returned in sanity_check()
             # - those are returned via a POST /info
             #
-            outs = {}
-
+            out = {}
             for token in args.clusters:
 
                 def _query(zk):
@@ -54,7 +55,7 @@ def go():
 
                 total, js = run(proxy, _query)
                 
-                outs.update(js)
+                out.update(js)
 
                 #
                 # - prettify if not asked for a json string
@@ -70,6 +71,6 @@ def go():
             
             if args.json:
 
-                logger.info(json.dumps(outs))
+                logger.info(json.dumps(out))
 
     return _Tool()

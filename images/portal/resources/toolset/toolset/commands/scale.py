@@ -222,14 +222,14 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='+', help='clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-f', action='store', dest='factor', default='+1', help='scaling factor, e.g x1.75')
             parser.add_argument('-g', action='store', type=int, dest='group', help='pod index')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--fifo', action='store_true', dest='fifo', help='fifo mode (scale down only)')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             #
             # - run the workflow proper (one thread per cluster)

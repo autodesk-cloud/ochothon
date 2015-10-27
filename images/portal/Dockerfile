@@ -1,4 +1,4 @@
-FROM autodeskcloud/pod:1.0.6
+FROM autodeskcloud/pod:1.0.7
 
 #
 # - add pyyaml

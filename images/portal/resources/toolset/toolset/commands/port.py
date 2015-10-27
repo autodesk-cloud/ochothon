@@ -30,6 +30,8 @@ def go():
         help = \
             '''
                 Displays the current remapping for a given TCP port across the specified cluster(s).
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
 
         tag = 'port'
@@ -37,12 +39,12 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('port', type=int, nargs=1, help='TCP port to lookup')
-            parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='*', default='*', help='clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
-            outs = {}
+            out = {}
             port = str(args.port[0])
             for cluster in args.clusters:
 
@@ -52,7 +54,7 @@ def go():
 
                 total, js = run(proxy, _query)
 
-                outs.update({item[0]: {'ip': item[2], 'public': item[4], 'ports': item[6]} for item in js})
+                out.update({item[0]: {'ip': item[2], 'public': item[4], 'ports': item[6]} for item in js})
 
                 if js and not args.json:
 
@@ -68,6 +70,6 @@ def go():
 
             if args.json:
                 
-                logger.info(json.dumps(outs))
+                logger.info(json.dumps(out))
 
     return _Tool()

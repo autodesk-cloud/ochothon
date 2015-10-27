@@ -42,7 +42,7 @@ def go():
 
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             def _query(zk):
                 replies = fire(zk, '*', 'info')

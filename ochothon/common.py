@@ -20,14 +20,14 @@ from subprocess import Popen, PIPE
 
 def shell(snippet, cwd=None, env=None):
 
-    outs = []
+    out = []
     pid = Popen(snippet, shell=True, stdout=PIPE, stderr=PIPE, cwd=cwd, env=env)
     while True:
-
-        line = pid.stdout.readline().rstrip('\n')
         code = pid.poll()
-        if line == '' and code is not None:
+        line = pid.stdout.readline()
+        if not line and code is not None:
             break
-        outs += [line]
+        elif line:
+            out += [line.rstrip('\n')]
 
-    return pid.returncode, '\n'.join(outs)
+    return pid.returncode, '\n'.join(out)

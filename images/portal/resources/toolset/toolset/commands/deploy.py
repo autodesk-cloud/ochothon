@@ -319,7 +319,7 @@ def go():
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--strict', action='store_true', dest='strict', help='waits until all pods are running')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             assert len(args.containers), 'at least one container definition is required'
 

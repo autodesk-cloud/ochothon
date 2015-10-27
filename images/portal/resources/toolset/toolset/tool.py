@@ -39,6 +39,9 @@ class Template():
     #: Mandatory identifier. The tool will be invoked using "toolset <tag>" (or just <tag> in the cli).
     tag = ""
 
+    #: If true the parser will not allow for unknown arguments
+    strict = True
+
     def run(self, cmdline):
 
         class _Parser(ArgumentParser):
@@ -47,10 +50,14 @@ class Template():
                 self.print_help()
                 exit(1)
 
+        unknown = None
         parser = _Parser(prog=self.tag, description=self.help)
         self.customize(parser)
         parser.add_argument('-d', '--debug', action='store_true', help='debug mode')
-        args = parser.parse_args(cmdline)
+        if self.strict:
+            args = parser.parse_args(cmdline)
+        else:
+            args, unknown = parser.parse_known_args(cmdline)
         if args.debug:
             for handler in logger.handlers:
                 handler.setLevel(DEBUG)
@@ -61,7 +68,7 @@ class Template():
         proxy = ZK.start([node for node in os.environ['OCHOPOD_ZK'].split(',')])
         try:
 
-            return self.body(args, proxy)
+            return self.body(args, unknown, proxy)
 
         finally:
 
@@ -70,5 +77,5 @@ class Template():
     def customize(self, parser):
         pass
 
-    def body(self, args, proxy):
+    def body(self, args, unknown, proxy):
         raise NotImplementedError

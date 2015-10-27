@@ -78,9 +78,10 @@ def cli(args):
                 # - update from steven -> reformat the input line to handle indirect paths transparently
                 # - for instance ../foo.bar will become foo.bar with the actual file included in the multi-part post
                 #
-                files = ['-F %s=@%s' % (basename(token), expanduser(token)) for token in tokens if isfile(expanduser(token))]
+                files = {basename(token): expanduser(token) for token in tokens if isfile(expanduser(token))}
                 line = ' '.join([basename(token) if isfile(expanduser(token)) else token for token in tokens])
-                snippet = 'curl -X POST -H "X-Shell:%s" %s %s:9000/shell' % (line, ' '.join(files), ip)
+                unrolled = ['-F %s=@%s' % (k, v) for k, v in files.items()]
+                snippet = 'curl -X POST -H "X-Shell:%s" %s %s:9000/shell' % (line, ' '.join(unrolled), ip)
                 code, out = shell(snippet)
                 js = json.loads(out.decode('utf-8'))
                 print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')

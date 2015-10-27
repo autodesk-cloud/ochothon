@@ -18,15 +18,13 @@ import json
 import logging
 import ochopod
 import os
-import pykka
 import sys
 import tempfile
 import time
 import shutil
 
 from flask import Flask, request, render_template
-from ochopod.core.fsm import diagnostic, spin_lock
-from ochopod.core.utils import shell
+from ochopod.core.fsm import diagnostic
 from os.path import join
 from subprocess import Popen, PIPE
 
@@ -70,20 +68,20 @@ if __name__ == '__main__':
                 ts = time.time()
                 line = request.headers['X-Shell']
                 logger.debug('http -> shell request "%s"' % line)
+                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=None, env=env, cwd=tmp)
 
                 #
                 # - pipe the process stdout
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
                 out = []
-                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=None, env=env, cwd=tmp)
                 while True:
-
-                    line = pid.stdout.readline().rstrip('\n')
                     code = pid.poll()
-                    if line == '' and code is not None:
+                    line = pid.stdout.readline()
+                    if not line and code is not None:
                         break
-                    out += [line]
+                    elif line:
+                        out += [line.rstrip('\n')]
 
                 ms = 1000 * (time.time() - ts)
                 return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(out)})
@@ -121,17 +119,13 @@ if __name__ == '__main__':
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
                 out = []
-
-                #
-                # - taken from ochopod's subprocess piping; avoids issues with buffering
-                #
                 while True:
-
-                    line = pid.stdout.readline().rstrip('\n')
                     code = pid.poll()
-                    if line == '' and code is not None:
+                    line = pid.stdout.readline()
+                    if not line and code is not None:
                         break
-                    out += [line]
+                    elif line:
+                        out += [line.rstrip('\n')]
 
                 ms = 1000 * (time.time() - ts)
                 return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(out)})

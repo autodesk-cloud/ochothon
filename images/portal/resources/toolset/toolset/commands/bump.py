@@ -196,13 +196,13 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='+', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='+', help='clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('-v', action='store', dest='version', type=str, default='latest', help='docker image version')
             parser.add_argument('--strict', action='store_true', dest='strict', help='waits until all pods are running')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             assert len(args.clusters), 'at least one cluster is required'
 

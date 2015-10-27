@@ -35,7 +35,7 @@ def go():
 
         tag = 'nodes'
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             def _query(zk):
                 replies = fire(zk, '*', 'info')

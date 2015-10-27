@@ -37,11 +37,11 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='*', default='*', help='1+ clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='*', default='*', help='clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-l', action='store_true', dest='long', help='display the entire log')
             parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
 
-        def body(self, args, proxy):
+        def body(self, args, unknown, proxy):
 
             for token in args.clusters:
 

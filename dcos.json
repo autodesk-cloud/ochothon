@@ -19,7 +19,7 @@
         {
             "forcePullImage":               true,
             "network":                      "BRIDGE",
-            "image":                        "autodeskcloud/ochothon:1.0.0",
+            "image":                        "autodeskcloud/ochothon:1.0.1",
             "portMappings":
                 [
                     {

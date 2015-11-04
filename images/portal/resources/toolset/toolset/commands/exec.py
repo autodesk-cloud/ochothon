@@ -36,7 +36,8 @@ def go():
                 be passed to the receiving pods and parsed allowing the define special switches and options. Any file
                 specified on the command line in the CLI will be uploaded to the pod in a temporary directory. Please
                 note the -i, -d, -h, --indices and --force switches will be preempted and thus cannot be used by
-                the tools (e.g if you need to expose a debug switch use something like --debug).
+                the tools (e.g if you need to expose a debug switch use something like --debug). Make sure to use the
+                -t option to specify a reasonable timeout if you plan on running slow operations (default of 1 minute).
 
                 By default pods do not expose any tool.
 
@@ -57,6 +58,7 @@ def go():
             parser.add_argument('cmdline', type=str, nargs='+', help='tool command line (e.g foo bar.yml)')
             parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
+            parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, unknown, proxy):
@@ -74,15 +76,17 @@ def go():
                         files[token] = f.read()
 
             def _query(zk):
-                replies = fire(zk, args.clusters[0], 'exec', subset=args.indices, headers=headers, files=files)
+                replies = fire(zk, args.clusters[0], 'exec', subset=args.indices, headers=headers, files=files, timeout=args.timeout)
                 return len(replies), {key: js for key, (_, js, code) in replies.items() if code == 200}
 
             total, js = run(proxy, _query)
             if js and not args.json:
 
                 pct = ((len(js) * 100) / total)
-                unrolled = ['- %s (exit code %d)\n\n  %s\n' % (key, log['code'], '\n  '.join(log['stdout'])) for key, log in js.items()]
-                logger.info('<%s> -> %d%% replies (%d pods total) ->\n%s' % (args.clusters[0], pct, len(js), '\n'.join(unrolled)))
+                logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters[0], pct, len(js)))
+                for key, log in js.items():
+                    suffix = '\n\n %s\n' % '\n '.join(log['stdout']) if log['stdout'] else ''
+                    logger.info('- %s (exit code %d)%s' % (key, log['code'], suffix))
 
             if args.json:
                 logger.info(json.dumps(js))

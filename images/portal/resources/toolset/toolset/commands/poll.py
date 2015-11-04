@@ -54,7 +54,6 @@ def go():
                     return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if code == 200 and 'metrics' in hints}
 
                 total, js = run(proxy, _query)
-                
                 out.update(js)
 
                 #

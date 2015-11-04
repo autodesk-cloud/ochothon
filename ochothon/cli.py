@@ -46,47 +46,79 @@ You can also run a one-shot command. For instance if you just need to list all y
 import cmd
 import json
 import os
+import tempfile
+import shutil
 
 from common import shell
-from os.path import basename, expanduser, isfile
+from os.path import abspath, basename, expanduser, isdir, isfile, join
 from sys import exit
 
 
 def cli(args):
 
-    class Shell(cmd.Cmd):
-
-        def __init__(self, ip):
-            cmd.Cmd.__init__(self)
-            self.prompt = '%s > ' % ip
-            self.ruler = '-'
-
-        def precmd(self, line):
-            return 'shell %s' % line if line not in ['exit'] else line
-
-        def emptyline(self):
-            pass
-
-        def do_exit(self, _):
-            raise KeyboardInterrupt
-
-        def do_shell(self, line):
-            if line:
-                tokens = line.split(' ')
-
-                #
-                # - update from steven -> reformat the input line to handle indirect paths transparently
-                # - for instance ../foo.bar will become foo.bar with the actual file included in the multi-part post
-                #
-                files = {basename(token): expanduser(token) for token in tokens if isfile(expanduser(token))}
-                line = ' '.join([basename(token) if isfile(expanduser(token)) else token for token in tokens])
-                unrolled = ['-F %s=@%s' % (k, v) for k, v in files.items()]
-                snippet = 'curl -X POST -H "X-Shell:%s" %s %s:9000/shell' % (line, ' '.join(unrolled), ip)
-                code, out = shell(snippet)
-                js = json.loads(out.decode('utf-8'))
-                print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')
-
+    tmp = tempfile.mkdtemp()
     try:
+
+        class Shell(cmd.Cmd):
+
+            def __init__(self, ip):
+                cmd.Cmd.__init__(self)
+                self.prompt = '%s > ' % ip
+                self.ruler = '-'
+
+            def precmd(self, line):
+                return 'shell %s' % line if line not in ['exit'] else line
+
+            def emptyline(self):
+                pass
+
+            def do_exit(self, _):
+                raise KeyboardInterrupt
+
+            def do_shell(self, line):
+                if line:
+                    tokens = line.split(' ')
+
+                    #
+                    # - update from @stphung -> reformat the input line to handle indirect paths transparently
+                    # - for instance ../foo.bar will become foo.bar with the actual file included in the multi-part post
+                    #
+                    files = {}
+                    substituted = []
+                    for token in tokens:
+                        expanded = expanduser(token)
+                        full = abspath(expanded)
+                        tag = basename(full)
+                        if isfile(expanded):
+
+                            #
+                            # - if the token maps to a local file upload it
+                            # - this is for instance what happens when you do 'deploy foo.yml'
+                            #
+                            files[tag] = abspath(full)
+                            substituted += [tag]
+
+                        elif isdir(expanded):
+
+                            #
+                            # - if the token maps to a local directory TGZ & upload it
+                            # - this is typically used to upload settings & script for our CD pipeline
+                            # - the TGZ is stored in our temp. directory
+                            #
+                            shell('tar zcf %s *' % join(tmp, '%s.tgz' % tag), cwd=full)
+                            files['%s.tgz' % tag] = '%s.tgz' % tag
+                            substituted += ['%s.tgz' % tag]
+
+                        else:
+                            substituted += [token]
+
+                    line = ' '.join(substituted)
+                    unrolled = ['-F %s=@%s' % (k, v) for k, v in files.items()]
+                    snippet = 'curl -X POST -H "X-Shell:%s" %s %s:9000/shell' % (line, ' '.join(unrolled), ip)
+                    code, out = shell(snippet, cwd=tmp)
+                    js = json.loads(out.decode('utf-8'))
+                    print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')
+
 
         #
         # - partition ip and args by looking for OCHOPOD_PROXY first
@@ -117,3 +149,6 @@ def cli(args):
     except Exception as failure:
         print('internal failure <- %s' % str(failure))
         exit(1)
+
+    finally:
+        shutil.rmtree(tmp)

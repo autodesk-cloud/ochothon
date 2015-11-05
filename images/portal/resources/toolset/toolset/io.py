@@ -72,7 +72,7 @@ def lookup(zk, regex, subset=None):
     return pods
 
 
-def fire(zk, cluster, command, subset=None, timeout=10.0, js=None, headers=None, files=None):
+def fire(zk, cluster, command, subset=None, timeout=5.0, js=None, headers=None, files=None):
 
     class _Post(Thread):
         """
@@ -125,7 +125,7 @@ def fire(zk, cluster, command, subset=None, timeout=10.0, js=None, headers=None,
     return {key: (seq, body, code) for (key, seq, body, code) in out if code}
 
 
-def run(proxy, func, timeout=60.0):
+def run(proxy, func, timeout=None):
     """
     Helper asking the zookeeper proxy actor to run the specified closure and blocking until either the timeout is
     reached or a response is received.

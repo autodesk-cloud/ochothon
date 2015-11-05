@@ -42,44 +42,44 @@ def go():
 
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
 
-        def body(self, args, unknown, proxy):
+        def body(self, args, _, proxy):
 
             def _query(zk):
                 replies = fire(zk, '*', 'info')
                 return len(replies), {key: hints for key, (_, hints, code) in replies.items() if code == 200}
 
+            out = {}
             total, js = run(proxy, _query)
-            if js:
+            pct = ((len(js) * 100) / total) if total else 0
+            for key, hints in js.items():
+                qualified = key.split(' ')[0]
+                if not qualified in out:
+                    out[qualified] = \
+                        {
+                            'total': 0,
+                            'running': 0,
+                            'status': ''
+                        }
 
-                out = {}
-                for key, hints in js.items():
-                    qualified = key.split(' ')[0]
-                    if not qualified in out:
-                        out[qualified] = \
-                            {
-                                'total': 0,
-                                'running': 0,
-                                'status': ''
-                            }
+                item = out[qualified]
+                item['total'] += 1
+                if hints['process'] == 'running':
+                    item['running'] += 1
 
-                    item = out[qualified]
-                    item['total'] += 1
-                    if hints['process'] == 'running':
-                        item['running'] += 1
+                if 'status' in hints and hints['status']:
+                    item['status'] = hints['status']
 
-                    if 'status' in hints and hints['status']:
-                        item['status'] = hints['status']
+            if args.json:
+                logger.info(json.dumps(out))
 
-                if args.json:
-                    logger.info(json.dumps(out))
+            elif js:
+                logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
+                unrolled = [[key, '|', '%d/%d' % (item['running'], item['total']), '|', item['status']] for key, item in sorted(out.items())]
+                rows = [['cluster', '|', 'ok', '|', 'status'], ['', '|', '', '|', '']] + unrolled
+                widths = [max(map(len, col)) for col in zip(*rows)]
+                for row in rows:
+                    logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
 
-                else:
-                    pct = (100 * len(js)) / total
-                    logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
-                    unrolled = [[key, '|', '%d/%d' % (item['running'], item['total']), '|', item['status']] for key, item in sorted(out.items())]
-                    rows = [['cluster', '|', 'ok', '|', 'status'], ['', '|', '', '|', '']] + unrolled
-                    widths = [max(map(len, col)) for col in zip(*rows)]
-                    for row in rows:
-                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+            return 0
 
     return _Tool()

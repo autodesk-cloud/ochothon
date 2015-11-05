@@ -30,42 +30,41 @@ def go():
         help = \
             '''
                 Displays high-level information for the specified cluster(s).
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
 
         tag = 'grep'
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='*', default='*', help='clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='?', default='*', help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
-        def body(self, args, unknown, proxy):
+        def body(self, args, _, proxy):
 
-            out = {}
-            for token in args.clusters:
+            def _query(zk):
+                replies = fire(zk, args.clusters[0], 'info')
+                return len(replies), [[key, '|', hints['ip'], '|', hints['node'], '|', hints['process'], '|', hints['state']]
+                                      for key, (_, hints, code) in sorted(replies.items()) if code == 200]
 
-                def _query(zk):
-                    replies = fire(zk, token, 'info')
-                    return len(replies), [[key, '|', hints['ip'], '|', hints['node'], '|', hints['process'], '|', hints['state']]
-                                          for key, (_, hints, code) in sorted(replies.items()) if code == 200]
-
-                total, js = run(proxy, _query)
-                out.update({item[0]: {'ip': item[2], 'node': item[4], 'process': item[6], 'state': item[8]} for item in js})
-
-                if js and not args.json:
-
-                    #
-                    # - justify & format the whole thing in a nice set of columns
-                    #
-                    pct = (len(js) * 100) / total
-                    logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (token, pct, len(js)))
-                    rows = [['pod', '|', 'pod IP', '|', 'node', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '', '|', '']] + js
-                    widths = [max(map(len, col)) for col in zip(*rows)]
-                    for row in rows:
-                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
-
+            total, js = run(proxy, _query)
+            pct = ((len(js) * 100) / total) if total else 0
             if args.json:
-                
+                out = {item[0]: {'ip': item[2], 'node': item[4], 'process': item[6], 'state': item[8]} for item in js}
                 logger.info(json.dumps(out))
+
+            elif js:
+
+                #
+                # - justify & format the whole thing in a nice set of columns
+                #
+                logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters[0], pct, len(js)))
+                rows = [['pod', '|', 'pod IP', '|', 'node', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '', '|', '']] + js
+                widths = [max(map(len, col)) for col in zip(*rows)]
+                for row in rows:
+                    logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+
+            return 0
 
     return _Tool()

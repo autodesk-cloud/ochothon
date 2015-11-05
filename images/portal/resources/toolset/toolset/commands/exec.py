@@ -54,7 +54,7 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs=1, help='clusters on which to invoke the specified tool (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs=1, help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('cmdline', type=str, nargs='+', help='tool command line (e.g foo bar.yml)')
             parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
@@ -80,15 +80,16 @@ def go():
                 return len(replies), {key: js for key, (_, js, code) in replies.items() if code == 200}
 
             total, js = run(proxy, _query)
-            if js and not args.json:
+            pct = ((len(js) * 100) / total) if total else 0
+            if args.json:
+                logger.info(json.dumps(js))
 
-                pct = ((len(js) * 100) / total)
+            elif js:
                 logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters[0], pct, len(js)))
                 for key, log in js.items():
                     suffix = '\n\n %s\n' % '\n '.join(log['stdout']) if log['stdout'] else ''
                     logger.info('- %s (exit code %d)%s' % (key, log['code'], suffix))
 
-            if args.json:
-                logger.info(json.dumps(js))
+            return 0 if pct == 100 else 1
 
     return _Tool()

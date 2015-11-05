@@ -37,39 +37,28 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='*', default='*', help='clusters (can be a glob pattern, e.g foo*).')
+            parser.add_argument('clusters', type=str, nargs='?', default='*', help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
-        def body(self, args, unknown, proxy):
+        def body(self, args, _, proxy):
 
-            #
-            # - grab the user metrics returned in sanity_check()
-            # - those are returned via a POST /info
-            #
-            out = {}
-            for token in args.clusters:
+            def _query(zk):
+                replies = fire(zk, args.clusters[0], 'info')
+                return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if code == 200 and 'metrics' in hints}
 
-                def _query(zk):
-                    replies = fire(zk, token, 'info')
-                    return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if code == 200 and 'metrics' in hints}
-
-                total, js = run(proxy, _query)
-                out.update(js)
-
-                #
-                # - prettify if not asked for a json string
-                #
-                if js and not args.json:
-
-                    pct = (len(js) * 100) / total
-                    logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
-                    rows = [['pod', '|', 'metrics'], ['', '|', '']] + sorted([[key, '|', json.dumps(val)] for key, val in js.iteritems()])
-                    widths = [max(map(len, col)) for col in zip(*rows)]
-                    for row in rows:
-                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
-            
+            total, js = run(proxy, _query)
+            pct = ((len(js) * 100) / total) if total else 0
             if args.json:
+                logger.info(json.dumps(js))
 
-                logger.info(json.dumps(out))
+            elif js:
+
+                logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
+                rows = [['pod', '|', 'metrics'], ['', '|', '']] + sorted([[key, '|', json.dumps(val)] for key, val in js.iteritems()])
+                widths = [max(map(len, col)) for col in zip(*rows)]
+                for row in rows:
+                    logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+
+            return 0
 
     return _Tool()

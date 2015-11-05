@@ -99,10 +99,12 @@ def go():
             # - simply invoke the tool
             # - remove the command tokens first and pass the rest as arguments
             # - each tool will parse its own commandline
+            # - if the tool does not define an exit code default to 0 (success)
             #
             picked = matched[0]
             tokens = len(picked.split(' ')) - 1
-            exit(tools[picked].run(args.extra[tokens:]))
+            code = tools[picked].run(args.extra[tokens:])
+            exit(0 if code is None else code)
 
     except AssertionError as failure:
 

@@ -14,14 +14,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import json
 import logging
+import os
 
+from ochopod.core.fsm import diagnostic
+from ochopod.core.utils import retry
+from threading import Thread
 from toolset.io import fire, run
 from toolset.tool import Template
 
 #: Our ochopod logger.
 logger = logging.getLogger('ochopod')
 
+
+class _Automation(Thread):
+
+    def __init__(self, proxy, cluster, indices, timeout):
+        super(_Automation, self).__init__()
+
+        self.cluster = cluster
+        self.out = \
+            {
+                'ok': False,
+                'off': []
+            }
+        self.proxy = proxy
+        self.indices = indices
+        self.timeout = max(timeout, 5)
+
+        self.start()
+
+    def run(self):
+        try:
+
+            def _query(zk):
+                replies = fire(zk, self.cluster, 'control/off', subset=self.indices, timeout=self.timeout)
+                return len(replies), [seq for seq, (_, _, code) in replies.items() if code == 200]
+
+            total, js = run(self.proxy, _query)
+            assert len(js) == total, '1 or more pod failed to stop'
+
+            self.out['off'] = js
+            self.out['ok'] = True
+
+        except AssertionError as failure:
+
+            logger.debug('%s : failed to switch off -> %s' % (self.cluster, failure))
+
+        except Exception as failure:
+
+            logger.debug('%s : failed to swich off -> %s' % (self.cluster, diagnostic(failure)))
+
+    def join(self, timeout=None):
+
+        Thread.join(self)
+        return self.out
 
 def go():
 
@@ -33,29 +81,41 @@ def go():
                 running). Individual containers can also be cherry-picked by specifying their sequence index and using
                 -i. Please note you must by default use -i and specify what containers to turn off. If you want to turn
                 multiple containers off at once you must specify --force.
+
+                This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
 
         tag = 'off'
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='+', help='clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='+', help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
+            parser.add_argument('-j', action='store_true', dest='json', help='json output')
+            parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, unknown, proxy):
 
             assert args.force or args.indices, 'you must specify --force if -i is not set'
 
-            for token in args.clusters:
+            #
+            # - run the workflow proper (one thread per cluster identifier)
+            #
+            threads = {cluster: _Automation(
+                proxy,
+                cluster,
+                args.indices,
+                args.timeout) for cluster in args.clusters}
 
-                def _query(zk):
-                    replies = fire(zk, token, 'control/off', subset=args.indices)
-                    return len(replies), [pod for pod, (_, _, code) in replies.items() if code == 200]
-
-                total, js = run(proxy, _query)
-                if js:
-                    pct = (len(js) * 100) / total
-                    logger.info('<%s> -> %d%% replies, %d pods off' % (token, pct, len(js)))
+            #
+            # - wait for all our threads to join
+            #
+            n = len(threads)
+            outcome = {key: thread.join() for key, thread in threads.items()}
+            dead = sum(len(js['off']) for _, js in outcome.items())
+            pct = (100 * sum(1 for _, js in outcome.items() if js['ok'])) / n if n else 0
+            logger.info(json.dumps(outcome) if args.json else '%d%% success (%d pods off)' % (pct, dead))
+            return 0 if pct == 100 else 1
 
     return _Tool()

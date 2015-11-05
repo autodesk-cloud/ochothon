@@ -178,18 +178,18 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('clusters', type=str, nargs='+', help='clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='+', help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('-i', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
             parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
-        def body(self, args, unknown, proxy):
+        def body(self, args, _, proxy):
 
             assert args.force or args.indices, 'you must specify --force if -i is not set'
 
             #
-            # - run the workflow proper (one thread per container definition)
+            # - run the workflow proper (one thread per cluster identifier)
             #
             threads = {cluster: _Automation(
                 proxy,

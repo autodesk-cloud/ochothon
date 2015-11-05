@@ -87,11 +87,10 @@ def go():
 
         help = \
             '''
-                Switches the specified pods on/off (their sub-process being gracefully shutdown and restarted). The
-                internal zookeeper coordinator will be restarted as well (but the container sequence index will remain
-                the same). Individual containers can also be cherry-picked by specifying their sequence index and
-                using -i. Please note you must by default use -i and specify what containers to reset. If you want to
-                reset multiple containers at once you must specify --force.
+                Switches the specified pods on/off/on (their sub-process being gracefully shutdown and restarted).
+                Individual containers can also be cherry-picked by specifying their sequence index and using -i. Please
+                note you must by default use -i and specify what containers to reset. If you want to reset multiple
+                containers at once you must specify --force.
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''

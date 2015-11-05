@@ -189,7 +189,6 @@ def go():
 
         help = \
             '''
-                Blah.
             '''
 
         tag = 'bump'

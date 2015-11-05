@@ -39,37 +39,34 @@ def go():
         def customize(self, parser):
 
             parser.add_argument('port', type=int, nargs=1, help='TCP port to lookup')
-            parser.add_argument('clusters', type=str, nargs='*', default='*', help='clusters (can be a glob pattern, e.g foo*)')
+            parser.add_argument('clusters', type=str, nargs='?', default='*', help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
         def body(self, args, unknown, proxy):
 
-            out = {}
             port = str(args.port[0])
-            for cluster in args.clusters:
 
-                def _query(zk):
-                    replies = fire(zk, cluster, 'info')
-                    return len(replies), [[key, '|', hints['ip'], '|', hints['public'], '|', str(hints['ports'][port])] for key, (_, hints, code) in sorted(replies.items()) if code == 200 and port in hints['ports']]
+            def _query(zk):
+                replies = fire(zk, args.clusters[0], 'info')
+                return len(replies), [[key, '|', hints['ip'], '|', hints['public'], '|', str(hints['ports'][port])] for key, (_, hints, code) in sorted(replies.items()) if code == 200 and port in hints['ports']]
 
-                total, js = run(proxy, _query)
-
-                out.update({item[0]: {'ip': item[2], 'public': item[4], 'ports': item[6]} for item in js})
-
-                if js and not args.json:
-
-                    #
-                    # - justify & format the whole thing in a nice set of columns
-                    #
-                    pct = (len(js) * 100) / total
-                    logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (cluster, pct, len(js)))
-                    rows = [['pod', '|', 'pod IP', '|', 'public IP', '|', 'TCP'], ['', '|', '', '|', '', '|', '']] + js
-                    widths = [max(map(len, col)) for col in zip(*rows)]
-                    for row in rows:
-                        logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
-
+            total, js = run(proxy, _query)
+            pct = (len(js) * 100) / total if total else 0
             if args.json:
-                
+                out = {item[0]: {'ip': item[2], 'public': item[4], 'ports': item[6]} for item in js}
                 logger.info(json.dumps(out))
+
+            elif js:
+
+                #
+                # - justify & format the whole thing in a nice set of columns
+                #
+                logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters[0], pct, len(js)))
+                rows = [['pod', '|', 'pod IP', '|', 'public IP', '|', 'TCP'], ['', '|', '', '|', '', '|', '']] + js
+                widths = [max(map(len, col)) for col in zip(*rows)]
+                for row in rows:
+                    logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))
+
+            return 0
 
     return _Tool()

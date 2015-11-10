@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import logging
+import os
 import time
 
 from ochopod.bindings.generic.marathon import Pod
@@ -24,6 +25,12 @@ logger = logging.getLogger('ochopod')
 
 
 if __name__ == '__main__':
+
+    #
+    # - use an optional token to perform SHA1 digest verification
+    # - this token can be defined via the $OCHOPOD_TOKEN environment variable
+    #
+    token = os.environ['ochopod_token'] if 'ochopod_token' in os.environ else ''
 
     class Strategy(Piped):
 
@@ -48,10 +55,18 @@ if __name__ == '__main__':
 
             lapse = (now - self.since) / 3600.0
 
-            return {'uptime': '%.2f hours (pid %s)' % (lapse, pid)}
+            return \
+                {
+                    'token': token,
+                    'uptime': '%.2f hours (pid %s)' % (lapse, pid)
+                }
 
         def configure(self, _):
 
-            return 'python portal.py', {}
+            #
+            # - run the webserver
+            # - don't forget to pass the secret token as an environment variable
+            #
+            return 'python portal.py', {'token': token}
 
     Pod().boot(Strategy)

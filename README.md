@@ -40,10 +40,18 @@ Once the stack is up look where your Marathon masters are running from and note 
 #### Step 3 : deploy our proxy
 
 We use a simple proxy mechanism to interact with our containers. Edit the provided ```dcos.json``` configuration and
-specify the **internal** IP for each master (just the IP, not a URL) including port 8080. For instance:
+specify the **internal** IP for each master (just the IP, not a URL) including port 8080 (do not use spaces). For
+instance:
 
 ```
 "MARATHON_MASTER": "10.37.202.103:8080,10.169.225.66:8080"
+```
+
+If you wish to secure your proxy you can also define a secret token (which is used for internal SHA1-HMAC challenges).
+For instance:
+
+```
+"ochothon_token": "my cool secret token"
 ```
 
 _Please note this (clunky) procedure is temporary until a way to find out what the masters are from within a container
@@ -75,17 +83,20 @@ installed locally. You can set the $OCHOPOD_PROXY environment variable to avoid 
 line. Any command typed in that interactive session will be relayed to your proxy ! If you prefer to CURL directory
 you can do so as well.
 
+If you are communicating with a proxy setup with a secret token you **must** export the $OCHOPOD_TOKEN environment
+variable and set it to the right value. Not setting it or setting it to the wrong value will result in a failure.
+
 The proxy supports a whole set of tools doing various things. Just type ```help``` in the CLI to get a list of what is
 there. Each tool also has supports a ```---help``` switch that will print out all the details you need to know. As
 an example:
 
 ```
-$ ocho cli
+$ ocho cli my-cluster
 welcome to the ocho CLI ! (CTRL-C to exit)
-> help
+my-cluster > help
 available commands -> deploy, grep, info, kill, log, ls, off, on
 
-> grep --help
+my-cluster > grep --help
 usage: ocho grep [-h] [-d] [clusters [clusters ...]]
 
 Displays high-level information for the specified cluster(s).
@@ -115,9 +126,9 @@ template ready in ochopod-marathon-my-app/
 You are all set. Use the _grep_ tool and you should see the portal itself. For instance:
 
 ```
-$ ocho cli
+$ ocho cli my-cluster
 welcome to the ocho CLI ! (CTRL-C to exit)
-> grep
+my-cluster > grep
 <*> -> 100% replies (1 pods total) ->
 
 cluster              |  pod IP         |  process  |  state

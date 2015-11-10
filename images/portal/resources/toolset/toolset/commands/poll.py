@@ -43,7 +43,7 @@ def go():
         def body(self, args, _, proxy):
 
             def _query(zk):
-                replies = fire(zk, args.clusters[0], 'info')
+                replies = fire(zk, args.clusters, 'info')
                 return len(replies), {key: hints['metrics'] for key, (index, hints, code) in replies.items() if code == 200 and 'metrics' in hints}
 
             total, js = run(proxy, _query)
@@ -53,7 +53,10 @@ def go():
 
             elif js:
 
-                logger.info('%d pods, %d%% replies ->\n' % (len(js), pct))
+                #
+                # - justify & format the whole thing in a nice set of columns
+                #
+                logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters, pct, len(js)))
                 rows = [['pod', '|', 'metrics'], ['', '|', '']] + sorted([[key, '|', json.dumps(val)] for key, val in js.iteritems()])
                 widths = [max(map(len, col)) for col in zip(*rows)]
                 for row in rows:

@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import hashlib
+import hmac
 import json
 import logging
 import ochopod
@@ -23,7 +25,7 @@ import tempfile
 import time
 import shutil
 
-from flask import Flask, request, render_template
+from flask import Flask, request
 from ochopod.core.fsm import diagnostic
 from os.path import join
 from subprocess import Popen, PIPE
@@ -49,8 +51,26 @@ if __name__ == '__main__':
 
         @web.route('/shell', methods=['POST'])
         def _from_curl():
+
+            out = []
+            ok = False
+            ts = time.time()
             tmp = tempfile.mkdtemp()
             try:
+
+                #
+                # - retrieve the command line
+                #
+                assert 'X-Shell' in request.headers, 'X-Shell header missing'
+                line = request.headers['X-Shell']
+
+                #
+                # - compute the incoming command line HMAC and compare (use our pod token as the key)
+                #
+                if 'token' in os.environ and os.environ['token']:
+                    assert 'X-Signature' in request.headers, 'signature missing (make sure you define $OCHOPOD_TOKEN)'
+                    digest = 'sha1=' + hmac.new(os.environ['token'], line, hashlib.sha1).hexdigest()
+                    assert digest == request.headers['X-Signature'], 'SHA1 signature mismatch (check your token)'
 
                 #
                 # - download each multi-part file to a temporary folder
@@ -65,8 +85,6 @@ if __name__ == '__main__':
                 # - use the 'toolset' python package that's installed in the container
                 # - open it
                 #
-                ts = time.time()
-                line = request.headers['X-Shell']
                 logger.debug('http -> shell request "%s"' % line)
                 pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=None, env=env, cwd=tmp)
 
@@ -74,8 +92,7 @@ if __name__ == '__main__':
                 # - pipe the process stdout
                 # - return as json ('out' contains the verbatim dump from the sub-process stdout)
                 #
-                out = []
-                while True:
+                while 1:
                     code = pid.poll()
                     line = pid.stdout.readline()
                     if not line and code is not None:
@@ -83,14 +100,15 @@ if __name__ == '__main__':
                     elif line:
                         out += [line.rstrip('\n')]
 
-                ms = 1000 * (time.time() - ts)
-                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(out)})
+                ok = pid.returncode == 0
+
+            except AssertionError as failure:
+
+                out = ['failure -> %s' % failure]
 
             except Exception as failure:
 
-                why = diagnostic(failure)
-                logger.warning('unexpected failure -> %s' % why)
-                return json.dumps({'ok': False, 'out': 'unexpected failure -> %s' % why})
+                out = ['unexpected failure -> %s' % diagnostic(failure)]
 
             finally:
 
@@ -99,58 +117,18 @@ if __name__ == '__main__':
                 #
                 shutil.rmtree(tmp)
 
-        @web.route('/shell', methods=['GET'])
-        def _from_web_shell():
-            tmp = tempfile.mkdtemp()
-            try:
+            ms = 1000 * (time.time() - ts)
+            js = \
+                {
+                    'ok': ok,
+                    'ms': ms,
+                    'out': '\n'.join(out)
+                }
 
-                #
-                # - get the shell snippet from the uri
-                # - use the 'toolset' python package that's installed in the container
-                # - open it
-                #
-                ts = time.time()
-                line = request.args.get('line', 0, type=str)
-                logger.debug('http -> shell request "%s"' % line)
-                pid = Popen('toolset %s' % line, shell=True, stdout=PIPE, stderr=None, env=env, cwd=tmp)
-
-                #
-                # - wait for completion
-                # - return as json ('out' contains the verbatim dump from the sub-process stdout)
-                #
-                out = []
-                while True:
-                    code = pid.poll()
-                    line = pid.stdout.readline()
-                    if not line and code is not None:
-                        break
-                    elif line:
-                        out += [line.rstrip('\n')]
-
-                ms = 1000 * (time.time() - ts)
-                return json.dumps({'ok': pid.returncode == 0, 'ms': int(ms), 'out': '\n'.join(out)})
-
-            except Exception as failure:
-
-                why = diagnostic(failure)
-                logger.warning('unexpected failure -> %s' % why)
-                return json.dumps({'ok': False, 'out': 'unexpected failure -> %s' % why})
-
-            finally:
-
-                #
-                # - make sure to cleanup our temporary directory
-                #
-                shutil.rmtree(tmp)
-
-        @web.route('/')
-        def index():
-
-            #
-            # - index.html contains all the jquery magic that will run the shell and
-            #   use ajax to I/O with us
-            #
-            return render_template('index.html')
+            return json.dumps(js), 200, \
+                {
+                    'Content-Type': 'application/json; charset=utf-8'
+                }
 
         #
         # - run our flask endpoint on TCP 9000

@@ -24,7 +24,6 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="ochonetes 1.0 documentation" href="index.html" />
-    <link rel="next" title="Portal" href="portal.html" />
     <link rel="prev" title="Overview" href="index.html" />
    
   
@@ -42,9 +41,6 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="portal.html" title="Portal"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
           <a href="index.html" title="Overview"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">ochonetes 1.0 documentation</a> &raquo;</li> 
@@ -58,34 +54,36 @@
             
   <div class="section" id="concepts">
 <h1>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="architecture">
-<h2>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="overview">
-<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
-<p>Ochothon is simply a <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> application that runs a little <em>portal</em> <a class="reference external" href="https://www.python.org/">Python</a> application (which interestingly is
-an <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> container itself). The <em>portal</em>&#8216;s job is to host a set of tools that will talk to the <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a> masters
-and <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> containers (for instance to deploy stuff).</p>
-<p>Why using such a proxy mechanism ? Well, mostly to encapsulate logic and avoid ending up with a fat CLI on your end.
-Additionally this allows to have all the inter-container I/O performed within the cluster (e.g no firewalling headache
-for you). Of course for a real PaaS this is also where you would inject access control, credentials and so on.</p>
-<p>In other words you deploy our <em>proxy</em> application and talk to it from then on. Easy.</p>
+<div class="section" id="i-o-with-the-proxy">
+<h2>I/O with the proxy<a class="headerlink" href="#i-o-with-the-proxy" title="Permalink to this headline">¶</a></h2>
+<p>The <em>portal</em> application runs a <a class="reference external" href="http://flask.pocoo.org/">Flask</a> endpoint listening on TCP 9000. It listens for shell requests and runs them
+in a temporary directory.</p>
+<p>You can access the <em>portal</em> from the outside world by simply CURLing commands with a <strong>POST /shell</strong>. The shell
+snippet is passed via the <strong>X-Shell</strong> header. You can for instance run the <em>ls</em> tool:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ curl -X POST -H &quot;X-Shell: ls&quot; http://&lt;IP&gt;:9000/shell
+{&quot;ok&quot;: true, &quot;ms&quot;: 463, &quot;out&quot;: &quot;\n1 pods, 100% running -&gt;\n - default.ocho-proxy #1\n&quot;}
+</pre></div>
 </div>
-<div class="section" id="why-ochopod">
-<h3>Why Ochopod ?<a class="headerlink" href="#why-ochopod" title="Permalink to this headline">¶</a></h3>
-<p>Because <a class="reference external" href="http://mesos.apache.org/">Mesos</a> - even if totally awesome - will not perform fine grained orchestration for you. You know what I
-mean by fine grained: the ability to form relationships between your containers without the need for an extrinsic
-control mechanism (look at the <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> documentation for more details).</p>
-<p>In our case we will leverage the <em>application</em> semantics from <a class="reference external" href="https://mesosphere.github.io/marathon/">Marathon</a>. One <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> cluster maps to one
-or more applications. Each application runs a bunch of <a class="reference external" href="http://mesos.apache.org/">Mesos</a> <em>tasks</em> which in turn run a <a class="reference external" href="https://www.docker.com/">Docker</a> container embedding
-<a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a>.</p>
-<p><a class="reference external" href="http://mesos.apache.org/">Mesos</a> will remap ports and this needs to be taken into account when containers need to reach each other. <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> will
-manage this for you.</p>
+<p>You can upload files as well (for instance when deploying clusters). The files will land in the temporary directory
+and be wiped out as soon as the tool completes. Just use a regular multi-part upload, for instance:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ curl -X POST -H &quot;X-Shell: deploy redis -p 3&quot; -F &quot;redis=@redis.yml&quot; http://&lt;IP&gt;:9000/shell
+</pre></div>
 </div>
-<div class="section" id="where-is-zookeeper">
-<h3>Where is Zookeeper ?<a class="headerlink" href="#where-is-zookeeper" title="Permalink to this headline">¶</a></h3>
-<p>As you remember <a class="reference external" href="https://github.com/autodesk-cloud/ochopod">Ochopod</a> relies on <a class="reference external" href="http://zookeeper.apache.org/">Zookeeper</a> for its internal leader elections and metadata storage. Our containers
-will simply all mount <em>/ect/mesos/</em> (e.g where the underlying slave stores its <a class="reference external" href="http://mesos.apache.org/">Mesos</a> configuration) and use what&#8217;s
-inside to find out where <a class="reference external" href="http://zookeeper.apache.org/">Zookeeper</a> is. So in other words we piggy back on the ensemble used by <a class="reference external" href="http://mesos.apache.org/">Mesos</a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Local directories will also be uploaded as TAR/GZIP archives.</p>
+</div>
+<p>The response is a serialized JSON object featuring the raw stdout dump of whatever tool you ran. It is thus quite
+trivial to build a shallow CLI front-end on your end to interact with the remote shell. Any failure will set the <em>ok</em>
+boolean to false (e.g non-zero exit code from the tool process).</p>
+</div>
+<div class="section" id="sha1-hmac-challenges">
+<h2>SHA1-HMAC challenges<a class="headerlink" href="#sha1-hmac-challenges" title="Permalink to this headline">¶</a></h2>
+<p>The proxy supports an optional security check. If a secret token is specified when deploying the container any REST
+call to the proxy will have to incude a <strong>X-Signature</strong> header set to the SHA1 digest of the command line. Not setting
+this header or setting it to something incorrect will result in a failure.</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>$ curl -X POST -H &quot;X-Shell: ls&quot; -H &quot;X-Signature: sha1=dha3jf861hbs781&quot; http://&lt;IP&gt;:9000/shell
+</pre></div>
 </div>
 </div>
 </div>
@@ -102,12 +100,8 @@ inside to find out where <a class="reference external" href="http://zookeeper.ap
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Concepts</a><ul>
-<li><a class="reference internal" href="#architecture">Architecture</a><ul>
-<li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#why-ochopod">Why Ochopod ?</a></li>
-<li><a class="reference internal" href="#where-is-zookeeper">Where is Zookeeper ?</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#i-o-with-the-proxy">I/O with the proxy</a></li>
+<li><a class="reference internal" href="#sha1-hmac-challenges">SHA1-HMAC challenges</a></li>
 </ul>
 </li>
 </ul>
@@ -115,7 +109,6 @@ inside to find out where <a class="reference external" href="http://zookeeper.ap
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="index.html" title="previous chapter">Overview</a></li>
-      <li>Next: <a href="portal.html" title="next chapter">Portal</a></li>
   </ul></li>
 </ul>
 <div id="searchbox" style="display: none" role="search">

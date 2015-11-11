@@ -44,7 +44,7 @@ def go():
         def body(self, args, _, proxy):
 
             def _query(zk):
-                replies = fire(zk, args.clusters[0], 'info')
+                replies = fire(zk, args.clusters, 'info')
                 return len(replies), [[key, '|', hints['ip'], '|', hints['node'], '|', hints['process'], '|', hints['state']]
                                       for key, (_, hints, code) in sorted(replies.items()) if code == 200]
 
@@ -59,7 +59,7 @@ def go():
                 #
                 # - justify & format the whole thing in a nice set of columns
                 #
-                logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters[0], pct, len(js)))
+                logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters, pct, len(js)))
                 rows = [['pod', '|', 'pod IP', '|', 'node', '|', 'process', '|', 'state'], ['', '|', '', '|', '', '|', '', '|', '']] + js
                 widths = [max(map(len, col)) for col in zip(*rows)]
                 for row in rows:

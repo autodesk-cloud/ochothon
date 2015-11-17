@@ -108,7 +108,7 @@ def cli(args):
                             # - this is typically used to upload settings & script for our CD pipeline
                             # - the TGZ is stored in our temp. directory
                             #
-			    path = join(tmp, '%s.tgz' % tag)
+                            path = join(tmp, '%s.tgz' % tag)
                             shell('tar zcf %s *' % path, cwd=full)
                             files['%s.tgz' % tag] = path
                             substituted += ['%s.tgz' % tag]

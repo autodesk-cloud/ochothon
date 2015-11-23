@@ -17,7 +17,8 @@ you CURL your commands directly which is a great way to build your very own
 
 #### Step 1 : install the CLI locally
 
-Simply install our CLI interface. You will then get access to a **ocho** command-line script. For instance:
+Simply install our CLI interface which only requires [**Python 2.7+**](https://www.python.org/). You will then get
+access to a multi-purpose **ocho** command-line script. For instance:
 
 ```
 $ pip install git+https://github.com/autodesk-cloud/ochothon.git

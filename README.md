@@ -35,7 +35,8 @@ Make sure to specify at least one public slave to run our proxy.
 
 #### Step 3 : deploy the proxy container
 
-We use a simple proxy mechanism to interact with our containers. Just use the attached ```dcos.json``` configuration to
+We use a simple proxy mechanism to interact with our containers. Just use the attached
+[**dcos.json**](https://github.com/autodesk-cloud/ochothon/blob/master/dcos.json) configuration to
 set it up. If you wish to secure your proxy you can edit this file and define a secret token (which is used for
 internal SHA1-HMAC challenges). For instance:
 
@@ -52,7 +53,7 @@ $ curl -s -XPOST http://<MASTER IP>:8080/v2/apps -d@dcos.json -H "Content-Type: 
 This is pretty much it. Just wait for the _ocho-proxy_ task to be up and check from where it is running (you can do
 this using the Marathon web UI for instance).
 
-Note its internal EC2 IP address (usually something like ```ip-172-20-0-11.ec2.internal```). Go in your AWS EC2 console
+Note its internal EC2 IP address (usually something like _ip-172-20-0-11.ec2.internal_). Go in your AWS EC2 console
 and find out what slave matches it. What you want of course it the slave public IP (e.g the one you can reach from your
 workstation). That IP (or the corresponding hostname) will be the _only thing you need to access from now on_ (you can
 for instance add it to your local _/etc/hosts_). You can easily firewall it as well depending on your needs.
@@ -70,7 +71,7 @@ my-cluster > help
 available commands -> bump, deploy, exec, grep, kill, log, ls, off, on, poll, port, reset, scale
 ```
 
-Please note you must have ```my-cluster``` mapped to your proxy IP in _/etc/hosts_ for the above to work.
+Please note you must have _my-cluster_ mapped to your proxy IP in _/etc/hosts_ for the above to work.
 
 ### Not using Mesos-DNS
 
@@ -78,7 +79,8 @@ If you wish to run the proxy on a generic Mesos/Marathon setup and are not plann
 [**Mesos-DNS**](https://mesosphere.github.io/mesos-dns/) you will have to specify the IP for all your masters
 manually.
 
-You can do so by adding a ```MARATHON_MASTER``` environment variable in the JSON configuration. Use a simple
+You can do so by adding a **$MARATHON_MASTER** environment variable in the
+[**JSON configuration**](https://github.com/autodesk-cloud/ochothon/blob/master/dcos.json). Use a simple
 comma separated connection string and make sure to use private IP addresses. For instance:
 
 ```
@@ -95,15 +97,15 @@ comma separated connection string and make sure to use private IP addresses. For
 
 You are now all setup and can remotely issue commands to the proxy. Are you afraid of using CURL or feel lazy ? No
 problemo, use our little self-contained CLI ! You just need to have [**Python 2.7+**](https://www.python.org/)
-installed locally. You can set the $OCHOPOD_PROXY environment variable to avoid passing the proxy IP on the command
+installed locally. You can set the **$OCHOPOD_PROXY** environment variable to avoid passing the proxy IP on the command
 line. Any command typed in that interactive session will be relayed to your proxy ! If you prefer to CURL directory
 you can do so as well.
 
-If you are communicating with a proxy setup with a secret token you **must** export the $OCHOPOD_TOKEN environment
+If you are communicating with a proxy setup with a secret token you **must** export the **$OCHOPOD_TOKEN** environment
 variable and set it to the right value. Not setting it or setting it to the wrong value will result in a failure.
 
 The proxy supports a whole set of tools doing various things. Just type ```help``` in the CLI to get a list of what is
-there. Each tool also has supports a ```---help``` switch that will print out all the details you need to know. As
+there. Each tool also has supports a --help switch that will print out all the details you need to know. As
 an example:
 
 ```

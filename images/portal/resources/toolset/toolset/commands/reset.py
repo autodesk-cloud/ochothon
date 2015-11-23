@@ -28,17 +28,18 @@ logger = logging.getLogger('ochopod')
 
 class _Automation(Thread):
 
-    def __init__(self, proxy, cluster, indices):
+    def __init__(self, proxy, cluster, indices, timeout):
         super(_Automation, self).__init__()
 
         self.cluster = cluster
+        self.indices = indices
         self.out = \
             {
                 'ok': False,
                 'reset': []
             }
         self.proxy = proxy
-        self.indices = indices
+        self.timeout = timeout
 
         self.start()
 
@@ -50,7 +51,7 @@ class _Automation(Thread):
             # - keep track of the indices
             #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'control/off', subset=self.indices)
+                replies = fire(zk, self.cluster, 'control/off', subset=self.indices, timeout=self.timeout)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
             pods = run(self.proxy, _query)
@@ -59,7 +60,7 @@ class _Automation(Thread):
             # - then turn those pod back on
             #
             def _query(zk):
-                replies = fire(zk, self.cluster, 'control/on', subset=pods)
+                replies = fire(zk, self.cluster, 'control/on', subset=pods, timeout=self.timeout)
                 return [seq for _, (seq, _, code) in replies.items() if code == 200]
 
             assert pods == run(self.proxy, _query), 'one or more pods failed to switch back on'
@@ -102,6 +103,7 @@ def go():
             parser.add_argument('clusters', type=str, nargs='+', help='clusters (can be a glob pattern, e.g foo*)')
             parser.add_argument('-i', '--indices', action='store', dest='indices', type=int, nargs='+', help='1+ indices')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
+            parser.add_argument('-t', action='store', dest='timeout', type=int, default=60, help='timeout in seconds')
             parser.add_argument('--force', action='store_true', dest='force', help='enables wildcards')
 
         def body(self, args, unknown, proxy):
@@ -111,7 +113,7 @@ def go():
             #
             # - run the workflow proper (one thread per container definition)
             #
-            threads = {cluster: _Automation(proxy, cluster, args.indices) for cluster in args.clusters}
+            threads = {cluster: _Automation(proxy, cluster, args.indices, args.timeout) for cluster in args.clusters}
 
             #
             # - wait for all our threads to join

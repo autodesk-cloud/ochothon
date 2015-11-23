@@ -9,12 +9,8 @@ and overlaying it on top of [**Marathon**](https://mesosphere.github.io/marathon
 You can either use any vanilla Mesos/Marathon setup or be cool and adopt [**DCOS**](https://mesosphere.com/) which
 provides an elaborate VPC setup plus dashboard !
 
-You will be able to interact from your workstation with a proxy which provides a self-contained web-shell
-([**JQuery**](https://jquery.com/) rocks !). This proxy hosts our little toolkit that allows you to create, query and
-manage your Ochopod containers. It also lets you CURL your commands directly which is a great way to build your CI/CD
-pipeline !
-
-Please note we **only support bindings to run over AWS** at this point.
+This proxy hosts our little toolkit that allows you to create, query and manage your Ochopod containers. It also lets
+you CURL your commands directly which is a great way to build your [**CI/CD pipeline**](https://github.com/autodesk-cloud/ci-ochopod) !
 
 ### Getting started
 

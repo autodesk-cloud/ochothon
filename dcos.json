@@ -6,8 +6,7 @@
     {
         "ochopod_cluster":  "portal",
         "ochopod_debug":    "true",
-        "ochopod_token":    "",
-        "MARATHON_MASTER":  "<YOUR MASTER IP #0>:8080,<YOUR MASTER IP #1>:8080..."
+        "ochopod_token":    ""
     },
     "acceptedResourceRoles":
         [

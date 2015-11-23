@@ -71,6 +71,7 @@ if __name__ == '__main__':
             #
             _, lines = shell('dig master.mesos +short')
             if lines:
+                logger.debug('retrieved %d ips via dig' % len(lines))
                 masters = ','.join(['%s:8080' % line for line in lines])
 
             #
@@ -85,7 +86,6 @@ if __name__ == '__main__':
             # - run the webserver
             # - don't forget to pass the secret token as an environment variable
             #
-            logger.debug('$MARATHON_MASTER=%s' % masters)
             return 'python portal.py', \
                    {
                        'token': token,

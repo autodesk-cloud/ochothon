@@ -10,11 +10,12 @@ You can either use any vanilla Mesos/Marathon setup or be cool and adopt [**DCOS
 provides an elaborate VPC setup plus dashboard !
 
 This proxy hosts our little toolkit that allows you to create, query and manage your Ochopod containers. It also lets
-you CURL your commands directly which is a great way to build your [**CI/CD pipeline**](https://github.com/autodesk-cloud/ci-ochopod) !
+you CURL your commands directly which is a great way to build your very own
+[**CI/CD pipeline**](https://github.com/autodesk-cloud/ci-ochopod) !
 
 ### Getting started
 
-#### Step 1 : install the CLI
+#### Step 1 : install the CLI locally
 
 Simply install our CLI interface. You will then get access to a **ocho** command-line script. For instance:
 
@@ -31,45 +32,51 @@ You know how to do it. Just peruse their [**documentation**](http://beta-docs.me
 script will gently deploy for you the whole stack inside of a VPC (plus you get access to their very cool dashboard).
 Make sure to specify at least one public slave to run our proxy.
 
-Once the stack is up look where your Marathon masters are running from and note their private IPs.
+#### Step 3 : deploy the proxy container
 
-#### Step 3 : deploy our proxy
-
-We use a simple proxy mechanism to interact with our containers. Edit the provided ```dcos.json``` configuration and
-specify the **internal** IP for each master (just the IP, not a URL) including port 8080 (do not use spaces). For
-instance:
-
-```
-"MARATHON_MASTER": "10.37.202.103:8080,10.169.225.66:8080"
-```
-
-If you wish to secure your proxy you can also define a secret token (which is used for internal SHA1-HMAC challenges).
-For instance:
+We use a simple proxy mechanism to interact with our containers. Just use the attached ```dcos.json``` configuration to
+set it up. If you wish to secure your proxy you can edit this file and define a secret token (which is used for
+internal SHA1-HMAC challenges). For instance:
 
 ```
 "ochothon_token": "my cool secret token"
 ```
 
-_Please note this (clunky) procedure is temporary until a way to find out what the masters are from within a container
-is implemented in Marathon._
-
-Then launch that application using CURL. It will automatically be assigned to one of your public slaves. You can post
-to the admin ELB that was deployed or directly to one of the masters (using its public IP of course). For instance:
+Now issue a HTTP POST to one of your masters in order to spawn the proxy task:
 
 ```
-$ curl -s -XPOST http://54.159.110.218:8080/v2/apps -d@dcos.json -H "Content-Type: application/json"
+$ curl -s -XPOST http://<MASTER IP>:8080/v2/apps -d@dcos.json -H "Content-Type: application/json"
 ```
 
-Wait a bit until the _ocho-proxy_ application is up and look at its only task. You can do this using the Marathon
-web UI. Note its internal EC2 IP address (usually something like ```ip-172-20-0-11.ec2.internal```). Go in your AWS
-EC2 console and find out what slave matches it. What you want of course it the slave public IP (e.g the one you can
-reach from your workstation).
+This is pretty much it. Just wait for the _ocho-proxy_ task to be up and check from where it is running (you can do
+this using the Marathon web UI for instance).
 
-This IP (or the corresponding hostname, whatever you prefer) will be the _only thing you need to access from now on_.
-You can easily firewall it depending on your needs. Simply use your browser and look the proxy node IP up on port 9000.
-You should see our little web-shell (notice the elegant ascii art).
+Note its internal EC2 IP address (usually something like ```ip-172-20-0-11.ec2.internal```). Go in your AWS EC2 console
+and find out what slave matches it. What you want of course it the slave public IP (e.g the one you can reach from your
+workstation). That IP (or the corresponding hostname) will be the _only thing you need to access from now on_ (you can
+for instance add it to your local _/etc/hosts_). You can easily firewall it as well depending on your needs.
 
-If you happen to kill the portal application do not panic and just re-create a new one (it is completely stateless).
+If you happen to kill the task do not panic and just re-create a new one (it is completely stateless).
+
+### Not using Mesos-DNS
+
+If you wish to run the proxy on a generic Mesos/Marathon setup and are not planning to install
+[**Mesos-DNS**](https://mesosphere.github.io/mesos-dns/) you will have to specify the IP for all your masters
+manually.
+
+You can do so by adding a ```MARATHON_MASTER``` environment variable in the JSON configuration. Use a simple
+comma separated connection string and make sure to use private IP addresses. For instance:
+
+```
+    "env":
+    {
+        "ochopod_cluster":  "portal",
+        "ochopod_debug":    "true",
+        "ochopod_token":    "",
+        "MARATHON_MASTER":  "10.37.202.103:8080,10.169.225.66:8080"
+    }
+```
+
 
 ### The CLI
 

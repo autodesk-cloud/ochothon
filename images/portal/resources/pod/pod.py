@@ -67,6 +67,7 @@ if __name__ == '__main__':
             #
             # - dig master.mesos
             # - this should give us a list of internal master IPs
+            # - please note this will only work if mesos-dns has been setup (and is running)
             #
             _, lines = shell('dig master.mesos +short')
             if lines:
@@ -74,7 +75,7 @@ if __name__ == '__main__':
 
             #
             # - no mesos-dns running ?
-            # - if so $MARATHON_MASTER must be defined (legacy)
+            # - if so $MARATHON_MASTER must be defined (legacy behavior)
             #
             else:
                 assert 'MARATHON_MASTER' in os.environ, 'failed to look mesos-dns up and no $MARATHON_MASTER defined'
@@ -85,6 +86,10 @@ if __name__ == '__main__':
             # - don't forget to pass the secret token as an environment variable
             #
             logger.debug('$MARATHON_MASTER=%s' % masters)
-            return 'python portal.py', {'token': token, 'MARATHON_MASTER': masters}
+            return 'python portal.py', \
+                   {
+                       'token': token,
+                       'MARATHON_MASTER': masters
+                   }
 
     Pod().boot(Strategy)

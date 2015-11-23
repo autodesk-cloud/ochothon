@@ -58,6 +58,19 @@ for instance add it to your local _/etc/hosts_). You can easily firewall it as w
 
 If you happen to kill the task do not panic and just re-create a new one (it is completely stateless).
 
+#### Step 4 : testing
+
+Simply run the CLI and type ```help```. You should get a response back with the list of supported tools. For instance:
+
+```
+$ ocho cli my-cluster
+welcome to the ocho CLI ! (CTRL-C to exit)
+my-cluster > help
+available commands -> bump, deploy, exec, grep, kill, log, ls, off, on, poll, port, reset, scale
+```
+
+Please note you must have ```my-cluster``` mapped to your proxy IP in _/etc/hosts_ for the above to work.
+
 ### Not using Mesos-DNS
 
 If you wish to run the proxy on a generic Mesos/Marathon setup and are not planning to install
@@ -76,7 +89,6 @@ comma separated connection string and make sure to use private IP addresses. For
         "MARATHON_MASTER":  "10.37.202.103:8080,10.169.225.66:8080"
     }
 ```
-
 
 ### The CLI
 
@@ -97,7 +109,7 @@ an example:
 $ ocho cli my-cluster
 welcome to the ocho CLI ! (CTRL-C to exit)
 my-cluster > help
-available commands -> deploy, grep, info, kill, log, ls, off, on
+available commands -> bump, deploy, exec, grep, kill, log, ls, off, on, poll, port, reset, scale
 
 my-cluster > grep --help
 usage: ocho grep [-h] [-d] [clusters [clusters ...]]

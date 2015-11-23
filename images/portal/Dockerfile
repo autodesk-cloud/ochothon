@@ -1,8 +1,10 @@
 FROM autodeskcloud/pod:1.0.7
 
 #
+# - add dnsutils (to get dig)
 # - add pyyaml
 #
+RUN apt-get -y update && apt-get -y install dnsutils
 RUN pip install pyyaml
 
 #

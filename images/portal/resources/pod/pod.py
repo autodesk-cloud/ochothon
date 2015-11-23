@@ -19,6 +19,7 @@ import os
 import time
 
 from ochopod.bindings.generic.marathon import Pod
+from ochopod.core.utils import shell
 from ochopod.models.piped import Actor as Piped
 
 logger = logging.getLogger('ochopod')
@@ -64,9 +65,26 @@ if __name__ == '__main__':
         def configure(self, _):
 
             #
+            # - dig master.mesos
+            # - this should give us a list of internal master IPs
+            #
+            _, lines = shell('dig master.mesos +short')
+            if lines:
+                masters = ','.join(['%s:8080' % line for line in lines])
+
+            #
+            # - no mesos-dns running ?
+            # - if so $MARATHON_MASTER must be defined (legacy)
+            #
+            else:
+                assert 'MARATHON_MASTER' in os.environ, 'failed to look mesos-dns up and no $MARATHON_MASTER defined'
+                masters = os.environ['MARATHON_MASTER']
+
+            #
             # - run the webserver
             # - don't forget to pass the secret token as an environment variable
             #
-            return 'python portal.py', {'token': token}
+            logger.debug('$MARATHON_MASTER=%s' % masters)
+            return 'python portal.py', {'token': token, 'MARATHON_MASTER': masters}
 
     Pod().boot(Strategy)

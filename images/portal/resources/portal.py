@@ -42,7 +42,7 @@ if __name__ == '__main__':
         #
         # - parse our ochopod hints
         # - enable CLI logging
-        # - pass down the ZK ensemble coordinate
+        # - pass down the ZK ensemble coordinate as $OCHOPOD_ZK (all tools use that to perform their queries)
         #
         env = os.environ
         hints = json.loads(env['ochopod'])

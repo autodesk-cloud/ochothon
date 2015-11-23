@@ -49,8 +49,8 @@ def go():
                         module = imp.load_source(script[:-3], join(where, script))
                         if hasattr(module, 'go') and callable(module.go):
                             tool = module.go()
-                            assert isinstance(tool, Template), 'boo'
-                            assert tool.tag, ''
+                            assert isinstance(tool, Template), 'wrong sub-class (invalid tool code ?)'
+                            assert tool.tag, 'tag left undefined (invalid tool code ?)'
                             funcs[tool.tag] = tool
 
                     except Exception as failure:

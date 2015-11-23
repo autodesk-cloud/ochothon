@@ -87,8 +87,8 @@ def cli(args):
                     # - for instance ../foo.bar will become foo.bar with the actual file included in the multi-part post
                     #
                     files = {}
-                    substituted = []
-                    for token in tokens:
+                    substituted = tokens[:1]
+                    for token in tokens[1:]:
                         expanded = expanduser(token)
                         full = abspath(expanded)
                         tag = basename(full)
@@ -108,8 +108,9 @@ def cli(args):
                             # - this is typically used to upload settings & script for our CD pipeline
                             # - the TGZ is stored in our temp. directory
                             #
-                            shell('tar zcf %s *' % join(tmp, '%s.tgz' % tag), cwd=full)
-                            files['%s.tgz' % tag] = '%s.tgz' % tag
+                            path = join(tmp, '%s.tgz' % tag)
+                            shell('tar zcf %s *' % path, cwd=full)
+                            files['%s.tgz' % tag] = path
                             substituted += ['%s.tgz' % tag]
 
                         else:

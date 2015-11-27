@@ -17,6 +17,7 @@
 import fnmatch
 import json
 import logging
+import os
 import pykka
 import requests
 import time
@@ -41,10 +42,12 @@ def lookup(zk, regex, subset=None):
     ts = time.time()
     try:
         #
-        # - use a glob style regex to match the cluster (handy to retrieve multiple
-        #   clusters at once)
+        # - use a glob style regex to match the cluster (handy to retrieve multiple clusters at once)
+        # - use the $RESTRICT_TO env. variable set by the pod to filter out what we can't see
         #
-        clusters = [cluster for cluster in zk.get_children(ROOT) if fnmatch.fnmatch(cluster, regex)]
+        scope = os.environ['RESTRICT_TO']
+        nodes = [node for node in zk.get_children(ROOT) if node.startswith(scope)] if scope else zk.get_children(ROOT)
+        clusters = [cluster for cluster in nodes if fnmatch.fnmatch(cluster, regex)]
         for cluster in clusters:
             kids = zk.get_children('%s/%s/pods' % (ROOT, cluster))
             for kid in kids:

@@ -2,10 +2,12 @@ FROM autodeskcloud/pod:1.0.7
 
 #
 # - add dnsutils (to get dig)
-# - add pyyaml
+# - install yaml, gunicorn and falcon
 #
-RUN apt-get -y update && apt-get -y install dnsutils
-RUN pip install pyyaml
+RUN apt-get update && apt-get install -y python-dev build-essential dnsutils
+RUN pip install pyyaml retrying
+RUN pip install --upgrade cython gevent gunicorn
+RUN pip install git+https://github.com/falconry/falcon.git
 
 #
 # - add our internal toolset package
@@ -20,6 +22,6 @@ RUN cd /opt/python/toolset && python setup.py install
 # - start supervisor
 #
 ADD resources/pod /opt/portal/pod
-ADD resources/portal.py /opt/portal/
+ADD resources/sink.py /opt/portal/
 ADD resources/supervisor /etc/supervisor/conf.d
 CMD /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf

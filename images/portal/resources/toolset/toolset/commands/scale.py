@@ -54,8 +54,8 @@ class _Automation(Thread):
             #
             # - we need to pass the framework master IPs around (ugly)
             #
-            assert 'MARATHON_MASTER' in os.environ, '$MARATHON_MASTER not specified (check your portal pod)'
-            master = choice(os.environ['MARATHON_MASTER'].split(','))
+            assert 'MASTERS' in os.environ, '$MASTERS not specified (check your portal pod)'
+            master = choice(os.environ['MASTERS'].split(','))
             headers = \
                 {
                     'content-type': 'application/json',

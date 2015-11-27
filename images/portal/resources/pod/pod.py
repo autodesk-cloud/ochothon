@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import json
 import logging
 import os
 import time
@@ -30,8 +31,22 @@ if __name__ == '__main__':
     #
     # - use an optional token to perform SHA1 digest verification
     # - this token can be defined via the $OCHOPOD_TOKEN environment variable
+    # - $OCHOPOD_TOKEN is used when spawning the proxy using a raw JSON request
     #
+    cfg = json.loads(os.environ['pod'])
     token = os.environ['ochopod_token'] if 'ochopod_token' in os.environ else ''
+
+    #
+    # - it can also be defined via the YAML configuration (this one takes precedence)
+    #
+    if 'token' in cfg and cfg['token']:
+        token = cfg['token']
+
+    #
+    # - if the 'restricted' flag is set the tools we run won't be allowed to see anything
+    #   outside of the current namespace
+    #
+    restricted = 'restricted' in cfg and cfg['restricted']
 
     class Strategy(Piped):
 
@@ -59,6 +74,7 @@ if __name__ == '__main__':
             return \
                 {
                     'token': token,
+                    'restricted': restricted,
                     'uptime': '%.2f hours (pid %s)' % (lapse, pid)
                 }
 
@@ -78,6 +94,8 @@ if __name__ == '__main__':
             # - no mesos-dns running ?
             # - if so $MARATHON_MASTER must be defined (legacy behavior)
             #
+            # todo -> change this $MARATHON_MASTER into something else
+            #
             else:
                 assert 'MARATHON_MASTER' in os.environ, 'failed to look mesos-dns up and no $MARATHON_MASTER defined'
                 masters = os.environ['MARATHON_MASTER']
@@ -85,11 +103,13 @@ if __name__ == '__main__':
             #
             # - run the webserver
             # - don't forget to pass the secret token as an environment variable
+            # - add $MASTERS and $RESTRICT_TO as well for the tools
             #
-            return 'python portal.py', \
+            return 'python sink.py', \
                    {
                        'token': token,
-                       'MARATHON_MASTER': masters
+                       'MASTERS': masters,
+                       'RESTRICT_TO': os.environ['ochopod_namespace'] if restricted else ''
                    }
 
     Pod().boot(Strategy)

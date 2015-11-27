@@ -63,9 +63,10 @@ def cli(args):
 
         class Shell(cmd.Cmd):
 
-            def __init__(self, ip, token=None):
+            def __init__(self, host, token=None):
                 cmd.Cmd.__init__(self)
-                self.prompt = '%s > ' % ip
+                self.host = host
+                self.prompt = '%s > ' % host
                 self.ruler = '-'
                 self.token = token
 
@@ -125,26 +126,27 @@ def cli(args):
                     line = ' '.join(substituted)
                     unrolled = ['-F %s=@%s' % (k, v) for k, v in files.items()]
                     digest = 'sha1=' + hmac.new(self.token, line, hashlib.sha1).hexdigest() if self.token else ''
-                    snippet = 'curl -X POST -H "X-Shell:%s" -H "X-Signature:%s" %s %s:9000/shell' % (line, digest, ' '.join(unrolled), ip)
+                    endpoint = self.host if ':' in self.host else '%s:9000' % self.host
+                    snippet = 'curl -X POST -H "X-Shell:%s" -H "X-Signature:%s" %s %s/shell' % (line, digest, ' '.join(unrolled), endpoint)
                     code, out = shell(snippet, cwd=tmp)
                     js = json.loads(out.decode('utf-8'))
                     print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')
 
         #
-        # - partition ip and args by looking for OCHOPOD_PROXY first
-        # - if OCHOPOD_PROXY is not used, treat the first argument as the ip
+        # - partition host and args by looking for OCHOPOD_PROXY first
+        # - if OCHOPOD_PROXY is not used, treat the first argument as the host
         #
-        ip = None
+        host = None
         if 'OCHOPOD_PROXY' in os.environ:
-            ip = os.environ['OCHOPOD_PROXY']
+            host = os.environ['OCHOPOD_PROXY']
         elif len(args):
-            ip = args[0]
+            host = args[0]
             args = args[1:] if len(args) > 1 else []
 
         #
         # - fail if left undefined
         #
-        assert ip is not None, 'either set $OCHOPOD_PROXY or pass the proxy IP as an argument'
+        assert host is not None, 'either set $OCHOPOD_PROXY or pass the proxy IP as an argument'
 
         #
         # - set the secret token if specified via the $OCHOPOD_TOKEN variable
@@ -157,12 +159,12 @@ def cli(args):
         #
         if len(args):
             command = " ".join(args)
-            Shell(ip, token).do_shell(command)
+            Shell(host, token).do_shell(command)
         else:
             print('welcome to the ocho CLI ! (CTRL-C or exit to get out)')
             if token is None:
                 print 'warning, $OCHOPOD_TOKEN is undefined'
-            Shell(ip, token).cmdloop()
+            Shell(host, token).cmdloop()
 
     except KeyboardInterrupt:
         exit(0)

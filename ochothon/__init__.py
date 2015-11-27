@@ -22,4 +22,4 @@ from logging.handlers import RotatingFileHandler
 from os.path import dirname
 
 #: our package version
-__version__ = '1.0.0'
+__version__ = '1.0.2'

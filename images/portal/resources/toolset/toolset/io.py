@@ -26,7 +26,7 @@ from collections import deque
 from kazoo.client import KazooClient, KazooState
 from kazoo.exceptions import NoNodeError
 from ochopod.core.core import ROOT
-from ochopod.core.fsm import diagnostic, shutdown, spin_lock, Aborted, FSM
+from ochopod.core.fsm import Aborted, FSM
 from pykka import Timeout
 from requests.exceptions import Timeout as HTTPTimeout
 from threading import Event, Thread
@@ -46,8 +46,9 @@ def lookup(zk, regex, subset=None):
         # - use the $RESTRICT_TO env. variable set by the pod to filter out what we can't see
         #
         scope = os.environ['RESTRICT_TO']
-        nodes = [node for node in zk.get_children(ROOT) if node.startswith(scope)] if scope else zk.get_children(ROOT)
-        clusters = [cluster for cluster in nodes if fnmatch.fnmatch(cluster, regex)]
+        if scope:
+            regex = '%s.%s' % (scope, regex)
+        clusters = [cluster for cluster in zk.get_children(ROOT) if fnmatch.fnmatch(cluster, regex)]
         for cluster in clusters:
             kids = zk.get_children('%s/%s/pods' % (ROOT, cluster))
             for kid in kids:

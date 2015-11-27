@@ -26,7 +26,7 @@ def ocho():
     Top level CLI script invoking one of the supported commands.
     """
 
-    commands = ['cli', 'init']
+    commands = ['bootstrap', 'cli', 'init']
     parser = ArgumentParser(description='ochothon CLI %s' % ochothon.__version__)
     parser.add_argument('command', type=str, help='supported commands: %s' % ','.join(commands))
     parser.add_argument('extra', metavar='extra arguments', type=str, nargs='*', help='0+ arguments (type "help" for detailed information)')

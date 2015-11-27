@@ -4,6 +4,7 @@
     "mem":  512,
     "env":
     {
+        "pod": "{}",
         "ochopod_cluster":  "portal",
         "ochopod_debug":    "true",
         "ochopod_token":    ""

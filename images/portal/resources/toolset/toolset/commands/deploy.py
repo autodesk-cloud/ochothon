@@ -39,7 +39,8 @@ class _Automation(Thread):
     def __init__(self, proxy, template, overrides, namespace, pods, release, suffix, timeout, strict):
         super(_Automation, self).__init__()
 
-        self.namespace = namespace
+        scope = os.environ['RESTRICT_TO']
+        self.namespace = '%s.%s' % (scope, namespace) if scope else namespace
         self.out = \
             {
                 'ok': False,
@@ -85,10 +86,10 @@ class _Automation(Thread):
                 #
                 defaults = \
                     {
-                        'start': True,
-                        'debug': False,
+                        'start':    True,
+                        'debug':    False,
                         'settings': {},
-                        'ports': [8080],
+                        'ports':    [8080],
                         'verbatim': {}
                     }
 

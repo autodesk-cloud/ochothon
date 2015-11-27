@@ -260,7 +260,7 @@ class _Automation(Thread):
                 @retry(timeout=self.timeout, pause=3, default={})
                 def _spin():
                     def _query(zk):
-                        replies = fire(zk, qualified, 'info')
+                        replies = fire(zk, qualified, 'info', absolute=1)
                         return [(hints['process'], seq) for seq, hints, _ in replies.values()
                                 if hints['application'] == application and hints['process'] in target]
 

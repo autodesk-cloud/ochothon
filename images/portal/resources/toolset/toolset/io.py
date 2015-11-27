@@ -36,7 +36,7 @@ from threading import Event, Thread
 logger = logging.getLogger('ochopod')
 
 
-def lookup(zk, regex, subset=None):
+def lookup(zk, regex, subset=None, absolute=False):
 
     pods = {}
     ts = time.time()
@@ -46,8 +46,14 @@ def lookup(zk, regex, subset=None):
         # - use the $RESTRICT_TO env. variable set by the pod to filter out what we can't see
         #
         scope = os.environ['RESTRICT_TO']
-        if scope:
+        restrict = scope and not absolute
+        if restrict:
+
+            #
+            # -
+            #
             regex = '%s.%s' % (scope, regex)
+
         clusters = [cluster for cluster in zk.get_children(ROOT) if fnmatch.fnmatch(cluster, regex)]
         for cluster in clusters:
             kids = zk.get_children('%s/%s/pods' % (ROOT, cluster))
@@ -56,7 +62,7 @@ def lookup(zk, regex, subset=None):
                 hints = \
                     {
                         'id': kid,
-                        'cluster': cluster
+                        'cluster': cluster[len(scope) + 1:] if restrict else cluster
                     }
 
                 #
@@ -76,7 +82,7 @@ def lookup(zk, regex, subset=None):
     return pods
 
 
-def fire(zk, cluster, command, subset=None, timeout=5.0, js=None, headers=None, files=None):
+def fire(zk, cluster, command, subset=None, timeout=5.0, js=None, headers=None, files=None, absolute=False):
 
     class _Post(Thread):
         """
@@ -123,7 +129,7 @@ def fire(zk, cluster, command, subset=None, timeout=5.0, js=None, headers=None, 
     # - lookup our pods based on the cluster(s) we want
     # - fire a thread for each
     #
-    pods = lookup(zk, cluster, subset=subset)
+    pods = lookup(zk, cluster, subset=subset, absolute=absolute)
     threads = [_Post(pod, hints) for pod, hints in pods.items()]
     out = [thread.join() for thread in threads]
     return {key: (seq, body, code) for (key, seq, body, code) in out if code}

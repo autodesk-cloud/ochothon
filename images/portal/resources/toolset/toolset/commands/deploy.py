@@ -40,7 +40,28 @@ class _Automation(Thread):
         super(_Automation, self).__init__()
 
         scope = os.environ['RESTRICT_TO']
-        self.namespace = '%s.%s' % (scope, namespace) if scope else namespace
+
+        if not namespace and not scope:
+
+            #
+            # -
+            #
+            self.namespace = 'marathon'
+
+        elif not namespace:
+
+            #
+            # -
+            #
+            self.namespace = scope
+
+        else:
+
+            #
+            # -
+            #
+            self.namespace = '%s.%s' % (scope, namespace)
+
         self.out = \
             {
                 'ok': False,
@@ -312,7 +333,7 @@ def go():
 
             parser.add_argument('containers', type=str, nargs='+', help='1+ YAML definitions (e.g marathon.yml)')
             parser.add_argument('-j', action='store_true', dest='json', help='json output')
-            parser.add_argument('-n', action='store', dest='namespace', type=str, default='marathon', help='namespace')
+            parser.add_argument('-n', action='store', dest='namespace', type=str, help='namespace')
             parser.add_argument('-o', action='store', dest='overrides', type=str, nargs='+', help='overrides YAML file(s)')
             parser.add_argument('-p', action='store', dest='pods', type=int, help='number of pods to deploy')
             parser.add_argument('-r', action='store', dest='release', type=str, help='docker image release tag')

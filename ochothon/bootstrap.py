@@ -64,7 +64,7 @@ def bootstrap(args):
             })
 
         digest = 'sha1=' + hmac.new(tokens[0], cfg, hashlib.sha1).hexdigest()
-        snippet = '''curl -X POST -d '%s' -H "Content-Type:application/json" -H "X-Signature:%s" %s''' % (cfg, digest, tokens[1])
+        snippet = '''curl -X POST --max-time 3600 -d '%s' -H "Content-Type:application/json" -H "X-Signature:%s" %s''' % (cfg, digest, tokens[1])
         code, out = shell(snippet)
         js = json.loads(out.decode('utf-8'))
         print(js['out'] if code is 0 else 'i/o failure (is the bootstrapper down ?)')

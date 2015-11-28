@@ -60,7 +60,7 @@ class _Automation(Thread):
             #
             # -
             #
-            self.namepace = namespace
+            self.namespace = namespace
 
         else:
 
@@ -136,12 +136,16 @@ class _Automation(Thread):
                 # - lookup the optional overrides and merge with our pod settings if specified
                 # - this is what happens when the -o option is used
                 #
+                scope = os.environ['RESTRICT_TO']
                 stamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S')
                 qualified = '%s.%s' % (self.namespace, cfg['cluster'])
                 application = 'ochopod.%s-%s' % (qualified, stamp)
-                if qualified in self.overrides:
 
-                    blk = self.overrides[qualified]
+                lookfor = qualified[len(scope) + 1:] if scope else qualified
+
+                if lookfor in self.overrides:
+
+                    blk = self.overrides[lookfor]
                     logger.debug('%s : overriding %d settings (%s)' % (self.template, len(blk), qualified))
                     cfg['settings'] = merge(cfg['settings'], blk)
 

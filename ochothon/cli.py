@@ -129,6 +129,7 @@ def cli(args):
                     endpoint = self.host if ':' in self.host else '%s:9000' % self.host
                     snippet = 'curl -X POST -H "X-Shell:%s" -H "X-Signature:%s" %s %s/shell' % (line, digest, ' '.join(unrolled), endpoint)
                     code, out = shell(snippet, cwd=tmp)
+                    assert out, 'i/o failure (proxy failure ?)'
                     js = json.loads(out.decode('utf-8'))
                     print(js['out'] if code is 0 else 'i/o failure (is the proxy down ?)')
 

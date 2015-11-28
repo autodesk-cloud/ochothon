@@ -55,6 +55,13 @@ class _Automation(Thread):
             #
             self.namespace = scope
 
+        elif not scope:
+
+            #
+            # -
+            #
+            self.namepace = namespace
+
         else:
 
             #

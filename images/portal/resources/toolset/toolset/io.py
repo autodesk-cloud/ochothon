@@ -50,7 +50,9 @@ def lookup(zk, regex, subset=None, absolute=False):
         if restrict:
 
             #
-            # -
+            # - if we need to restrict make sure to prepend the scope to the regex
+            # - that will ensure we'll automatically filter out anything that is not in or
+            #   below the specified namespace
             #
             regex = '%s.%s' % (scope, regex)
 
@@ -62,17 +64,18 @@ def lookup(zk, regex, subset=None, absolute=False):
                 hints = \
                     {
                         'id': kid,
-                        'cluster': cluster[len(scope) + 1:] if restrict else cluster
+                        'cluster': cluster
                     }
 
                 #
+                # - restrict the output key based on the optional scope
                 # - the number displayed by the tools (e.g shared.docker-proxy #4) is that monotonic integer
                 #   derived from zookeeper
                 #
                 hints.update(json.loads(js))
                 seq = hints['seq']
                 if not subset or seq in subset:
-                    pods['%s #%d' % (cluster, seq)] = hints
+                    pods['%s #%d' % (cluster[len(scope) + 1:] if restrict else cluster, seq)] = hints
 
     except NoNodeError:
         pass

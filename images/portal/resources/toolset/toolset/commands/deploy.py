@@ -145,18 +145,45 @@ class _Automation(Thread):
                 # - the port binding is specified either by an integer (container port -> dynamic mesos port), by
                 #   two integers (container port -> host port) or by an integer followed by a * (container port ->
                 #   same port on the host)
+                # - on top of that, all those options allow to specify whether the protocol is TCP or UDP by adding
+                #   the desired protocol after the binding (e.g. '8080 tcp' or '8125 * udp'. TCP is the default if no
+                #   protocol is specified.
                 # - the marathon pods must by design map /etc/mesos
                 #
                 def _parse_port(token):
-                    if isinstance(token, int):
-                        return {'containerPort': token}
-                    elif isinstance(token, str) and token.endswith(' *'):
-                        port = int(token[:-2])
-                        return {'containerPort': port, 'hostPort': port}
-                    elif isinstance(token, str):
-                        ports = token.split(' ')
-                        assert len(ports) == 2, 'invalid port syntax (must be two integers separated by 1+ spaces)'
-                        return {'containerPort': int(ports[0]), 'hostPort': int(ports[1])}
+                    
+                    #
+                    # - tries to return an int if possible, a string otherwise
+                    #
+                    def get_token_no_protocol(token):
+                        # - remove the protocol piece
+                        t = token[:-4].strip()
+                        try:
+                            return int(t)
+                        except ValueError:
+                            return t
+                    
+                    if isinstance(token, str) and token.lower().endswith(' udp'):
+                        protocol = 'udp'
+                        token_no_protocol = get_token_no_protocol(token)
+                        
+                    elif isinstance(token, str) and token.lower().endswith(' tcp'):
+                        protocol = 'tcp'
+                        token_no_protocol = get_token_no_protocol(token)
+                    else:
+                        # - TCP is the default
+                        protocol = 'tcp'
+                        token_no_protocol = token    
+                    
+                    if isinstance(token_no_protocol, int):
+                        return {'containerPort': token_no_protocol, 'protocol': protocol}
+                    elif isinstance(token_no_protocol, str) and token_no_protocol.endswith(' *'):
+                        port = int(token_no_protocol[:-2])
+                        return {'containerPort': port, 'hostPort': port, 'protocol': protocol}
+                    elif isinstance(token_no_protocol, str):
+                        ports = token_no_protocol.split(' ')
+                        assert len(ports) == 2, 'invalid port syntax (must be two integers separated by 1+ spaces optionally followed by the protocol (tcp or udp, defaults to tcp))'
+                        return {'containerPort': int(ports[0]), 'hostPort': int(ports[1]), 'protocol': protocol}
                     else:
                         assert 0, 'invalid port syntax ("%s")' % token
 

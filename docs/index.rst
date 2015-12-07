@@ -45,7 +45,7 @@ Need to know on what port your containerized Zookeeper_ ensemble is listening on
     > port 2181 *zookeeper
     <*zookeeper> -> 100% replies (3 pods total) ->
 
-    cluster                  |  node IP         |  TCP
+    cluster                  |  node IP         |  port
                              |                  |
     my.project.zookeeper #1  |  54.81.20.224    |  9001
     my.project.zookeeper #2  |  54.198.16.240   |  1029

@@ -29,7 +29,8 @@ def go():
 
         help = \
             '''
-                Displays the current remapping for a given TCP port across the specified cluster(s).
+                Displays the current remapping for a given port across the specified cluster(s). The current implementation
+                does not allow to indicate whether the protocol is TCP or UDP.
 
                 This tool supports optional output in JSON format for 3rd-party integration via the -j switch.
             '''
@@ -38,7 +39,7 @@ def go():
 
         def customize(self, parser):
 
-            parser.add_argument('port', type=int, nargs=1, help='TCP port to lookup')
+            parser.add_argument('port', type=int, nargs=1, help='port to lookup')
             parser.add_argument('clusters', type=str, nargs='?', default='*', help='cluster(s) (can be a glob pattern, e.g foo*)')
             parser.add_argument('-j', '--json', action='store_true', help='switch for json output')
 
@@ -62,7 +63,7 @@ def go():
                 # - justify & format the whole thing in a nice set of columns
                 #
                 logger.info('<%s> -> %d%% replies (%d pods total) ->\n' % (args.clusters, pct, len(js)))
-                rows = [['pod', '|', 'pod IP', '|', 'public IP', '|', 'TCP'], ['', '|', '', '|', '', '|', '']] + js
+                rows = [['pod', '|', 'pod IP', '|', 'public IP', '|', 'port'], ['', '|', '', '|', '', '|', '']] + js
                 widths = [max(map(len, col)) for col in zip(*rows)]
                 for row in rows:
                     logger.info('  '.join((val.ljust(width) for val, width in zip(row, widths))))

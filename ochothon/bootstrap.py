@@ -54,6 +54,8 @@ def bootstrap(args):
         slack_channel = raw_input('> enter a Slack channel to send notifications to: ')
         slack_token = raw_input('> enter your Slack API token: ')
 
+        assert space and token and slack_channel and slack_token, 'one or more inputs are empty'
+
         print '\ndeploying your space...'
 
         cfg = json.dumps(

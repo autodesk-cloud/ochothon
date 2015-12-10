@@ -43,10 +43,9 @@ if __name__ == '__main__':
         token = cfg['token']
 
     #
-    # - if the 'restricted' flag is set the tools we run won't be allowed to see anything
-    #   outside of the current namespace
+    # - if 'root' is specified the python tools won't be allowed to see anything else
     #
-    restricted = 'restricted' in cfg and cfg['restricted']
+    restricted = 'root' in cfg and cfg['root']
 
     class Strategy(Piped):
 
@@ -109,7 +108,7 @@ if __name__ == '__main__':
                    {
                        'token': token,
                        'MASTERS': masters,
-                       'RESTRICT_TO': os.environ['ochopod_namespace'] if restricted else ''
+                       'RESTRICT_TO': cfg['root'] if restricted else ''
                    }
 
     Pod().boot(Strategy)

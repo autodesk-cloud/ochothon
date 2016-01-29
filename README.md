@@ -9,6 +9,10 @@ and overlaying it on top of [**Marathon**](https://mesosphere.github.io/marathon
 You can either use any vanilla Mesos/Marathon setup or be cool and adopt [**DCOS**](https://mesosphere.com/) which
 provides an elaborate VPC setup plus dashboard !
 
+Please note a more generic [**configuration**](https://github.com/autodesk-cloud/ochothon/blob/master/default.json)
+is also provided should you want to run on a different Mesos setup. In that case make sure you edit it and specify
+your marathon master IP.
+
 This proxy hosts our little toolkit that allows you to create, query and manage your Ochopod containers. It also lets
 you CURL your commands directly which is a great way to build your very own
 [**CI/CD pipeline**](https://github.com/autodesk-cloud/ci-ochopod) !

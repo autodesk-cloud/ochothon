@@ -7,12 +7,9 @@
         "pod":              "{}",
         "ochopod_cluster":  "portal",
         "ochopod_debug":    "true",
-        "ochopod_token":    ""
+        "ochopod_token":    "",
+        "MARATHON_MASTER":  "http://127.0.0.1:8080"
     },
-    "acceptedResourceRoles":
-        [
-            "slave_public"
-        ],
     "container":
     {
         "type":"DOCKER",
@@ -34,8 +31,8 @@
         },
         "volumes":[
             {
-                "containerPath":            "/opt/mesosphere",
-                "hostPath":                 "/opt/mesosphere",
+                "containerPath":            "/etc/mesos",
+                "hostPath":                 "/etc/mesos",
                 "mode":                     "RO"
             }
         ]

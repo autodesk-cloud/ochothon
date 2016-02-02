@@ -1,5 +1,7 @@
 ## Ochothon
 
+[![Join the chat at https://gitter.im/autodesk-cloud/ochothon](https://badges.gitter.im/autodesk-cloud/ochothon.svg)](https://gitter.im/autodesk-cloud/ochothon?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ### Overview
 
 This project is a small development PaaS leveraging [**Ochopod**](https://github.com/autodesk-cloud/ochopod)
